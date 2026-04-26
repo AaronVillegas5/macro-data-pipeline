@@ -16,7 +16,6 @@ def save_weather(data):
             humidity=data["humidity"]
         )
 
-        # 👇 This is the key line (UPSERT behavior)
         stmt = stmt.on_conflict_do_nothing(
             index_elements=["location_id", "observed_at"]
         )
