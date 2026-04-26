@@ -1,21 +1,13 @@
 from db.connection import SessionLocal
 from db.models import WeatherObservation
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.dialects.postgresql import insert
+
 
 def save_weather(data):
     db = SessionLocal()
-    try:
-        #check if location and time pair exists
-        exists = db.query(WeatherObservation).filter(
-            WeatherObservation.location_id == data["location_id"],
-            WeatherObservation.observed_at == data["time"]
-        ).first()
 
-        if exists:
-            print("Duplicate found, skipping insert")
-            return
-        #Only insert if not duplicate
-        record = WeatherObservation(
+    try:
+        stmt = insert(WeatherObservation).values(
             location_id=data["location_id"],
             temperature_c=data["temperature"],
             wind_speed=data["wind_speed"],
@@ -24,7 +16,12 @@ def save_weather(data):
             humidity=data["humidity"]
         )
 
-        db.add(record)
+        # 👇 This is the key line (UPSERT behavior)
+        stmt = stmt.on_conflict_do_nothing(
+            index_elements=["location_id", "observed_at"]
+        )
+
+        db.execute(stmt)
         db.commit()
 
     except Exception as e:
