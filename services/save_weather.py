@@ -7,7 +7,9 @@ def save_weather(data):
         record = WeatherObservation(
             temperature_c=data["temperature"],
             wind_speed=data["wind_speed"],
-            observed_at=data["time"]
+            observed_at=data["time"],
+            pressure = data["pressure"],
+            humidity = data["humidity"]
         )
 
         db.add(record)
