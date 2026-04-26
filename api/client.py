@@ -1,6 +1,9 @@
 import requests
+from utilities.logger import logger
+
 
 def get_weather(lat, lon):
+    logger.info("Calling Open-Meteo API")
     url = "https://api.open-meteo.com/v1/forecast"
 
     params = {

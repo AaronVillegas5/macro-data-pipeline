@@ -14,14 +14,11 @@ class WeatherObservation(Base):
 
     id = Column(Integer, primary_key=True)
 
-    location_id = Column(Integer, ForeignKey("locations.id"))
+    location_id = Column(Integer, ForeignKey("locations.id"), nullable=False)
 
     temperature_c = Column(Float)
-
     wind_speed = Column(Float)
-
     pressure = Column(Float)
-    
     humidity = Column(Float)
 
     observed_at = Column(DateTime)
@@ -34,7 +31,7 @@ class Location(Base):
         UniqueConstraint("latitude", "longitude"),
     )
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, nullable=False)
 
     name = Column(String, nullable=False)
 
