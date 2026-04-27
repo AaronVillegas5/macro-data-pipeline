@@ -29,3 +29,11 @@ CREATE TABLE economic_observations (
     value DOUBLE PRECISION,
     UNIQUE(series_id, observed_at)
 );
+
+CREATE TABLE raw_api_responses (
+    id SERIAL PRIMARY KEY,
+    source VARCHAR(50) NOT NULL,
+    identifier VARCHAR(100),        -- series_id for FRED, location for weather
+    fetched_at TIMESTAMPTZ DEFAULT NOW(),
+    raw_response JSONB NOT NULL
+);

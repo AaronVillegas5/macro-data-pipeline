@@ -1,5 +1,7 @@
 import requests, os
 from utilities.logger import logger
+from db.connection import SessionLocal
+from services.s3_client import save_raw_response
 from dotenv import load_dotenv
 load_dotenv()
 API_KEY = os.getenv('FRED_API_KEY')
@@ -19,5 +21,11 @@ def get_series(series_id):
 
     response = requests.get(url, params=params, timeout=10)
     response.raise_for_status()
-
-    return response.json() 
+    data = response.json()
+    
+    db = SessionLocal()
+    try:
+        save_raw_response("fred", series_id, data, db)
+    finally:
+        db.close()
+    return data

@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from db.connection import Base
 
@@ -11,6 +12,9 @@ class User(Base):
 
 class WeatherObservation(Base):
     __tablename__ = "weather_observations"
+    __table_args__ = (
+        UniqueConstraint("location_id", "observed_at", name="unique_location_time"),
+    )
 
     id = Column(Integer, primary_key=True)
 
@@ -52,7 +56,7 @@ class EconomicObservation(Base):
     id = Column(Integer, primary_key=True, nullable=False)
 
     series_name = Column(String)
-    
+
     series_id = Column(String, nullable= False)
 
     value = Column(Float, nullable=False)
@@ -60,3 +64,15 @@ class EconomicObservation(Base):
     observed_at = Column(DateTime, nullable=False)
 
     created_at = Column(DateTime, server_default=func.now())
+
+# class RetailObservation(Base):
+#     __tablename__ = "retail_observations"
+#     id = Column(Integer, primary_key=True, nullable=False)
+class RawApiResponse(Base):
+    __tablename__ = "raw_api_responses"
+
+    id = Column(Integer, primary_key=True, nullable=False)
+    source = Column(String(50), nullable=False)
+    identifier = Column(String(100))
+    fetched_at = Column(DateTime(timezone=True), server_default=func.now())
+    raw_response = Column(JSONB, nullable=False)

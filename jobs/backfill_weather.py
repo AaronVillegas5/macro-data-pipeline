@@ -3,6 +3,7 @@ from datetime import date, timedelta, datetime
 from sqlalchemy.dialects.postgresql import insert
 from db.connection import SessionLocal
 from db.models import WeatherObservation
+from services.s3_client import save_raw_response
 
 
 # -------------------------------
@@ -22,8 +23,16 @@ def get_historical_weather(lat, lon, start, end):
 
     response = requests.get(url, params=params, timeout=5)
     response.raise_for_status()
+    data = response.json()
 
-    return response.json()
+    #Saving to S3 bucket
+    location_key = f"{lat}_{lon}"
+    db = SessionLocal()
+    try:
+        save_raw_response("weather", location_key, data, db)
+    finally:
+        db.close()
+    return data
 
 
 # -------------------------------
@@ -74,6 +83,7 @@ def save_rows(rows):
     except Exception as e:
         db.rollback()
         print("Error:", e)
+        raise  
 
     finally:
         db.close()
@@ -115,6 +125,6 @@ if __name__ == "__main__":
         lat=33.6405,
         lon=-117.6026,
         location_id=1,
-        start_date=date(2026, 1, 1),
-        end_date=date(2026, 12, 31)
+        start_date=date(2024, 1, 1),
+        end_date=date(2026, 4, 26)
     )
