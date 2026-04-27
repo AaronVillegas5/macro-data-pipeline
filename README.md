@@ -39,12 +39,12 @@ The goal is to build a foundation for real-world economic analysis and predictiv
 ---
 
 ## 📁 Project Structure
-api/
-services/
-db/
-jobs/
-alembic/ 
-utilities/
+api/\
+services/\
+db/\
+jobs/\
+alembic/ \
+utilities/\
 
 ---
 
