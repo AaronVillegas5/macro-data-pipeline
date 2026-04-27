@@ -1,4 +1,4 @@
-from api.client import get_weather
+from api.weather_client import get_weather
 
 def fetch_weather(lat, lon):
     data = get_weather(lat, lon)
