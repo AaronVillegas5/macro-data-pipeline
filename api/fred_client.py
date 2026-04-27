@@ -12,7 +12,7 @@ def get_series(series_id):
     url = "https://api.stlouisfed.org/fred/series/observations"
 
     params = {
-        "series": series_id,
+        "series_id": series_id,
         "api_key": API_KEY,
         "file_type": "json"
     }

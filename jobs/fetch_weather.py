@@ -1,5 +1,4 @@
 from services.weather_service import fetch_weather
-from services.save_weather import save_weather
 from db.models import WeatherObservation
 from services.location_service import get_or_create_location
 from db.connection import SessionLocal

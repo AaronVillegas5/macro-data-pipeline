@@ -45,10 +45,14 @@ class Location(Base):
 
 class EconomicObservation(Base):
     __tablename__ = "economic_observations"
-    __table_args__ = UniqueConstraint("series_id", "observed_at", name="unique_series_time")
+    __table_args__ = (
+        UniqueConstraint("series_id", "observed_at", name="unique_series_time"),
+        )
 
     id = Column(Integer, primary_key=True, nullable=False)
 
+    series_name = Column(String)
+    
     series_id = Column(String, nullable= False)
 
     value = Column(Float, nullable=False)

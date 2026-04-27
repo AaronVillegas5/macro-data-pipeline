@@ -1,7 +1,7 @@
 from api.fred_client import get_series
-import datetime
+from datetime import datetime
 
-def fetch_weather(series_id):
+def fetch_series(series_id):
     data = get_series(series_id)
 
     # """ Obs look like

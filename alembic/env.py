@@ -1,5 +1,9 @@
-import sys
+from dotenv import load_dotenv
 import os
+
+load_dotenv()
+DATABASE_URL = os.getenv("DATABASE_URL")
+import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from logging.config import fileConfig
@@ -64,11 +68,9 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
+    from sqlalchemy import create_engine
+
+    connectable = create_engine(DATABASE_URL)
 
     with connectable.connect() as connection:
         context.configure(
