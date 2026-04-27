@@ -42,3 +42,17 @@ class Location(Base):
     latitude = Column(Float, nullable=False)
 
     longitude = Column(Float, nullable=False)
+
+class EconomicObservation(Base):
+    __tablename__ = "economic_observations"
+    __table_args__ = UniqueConstraint("series_id", "observed_at", name="unique_series_time")
+
+    id = Column(Integer, primary_key=True, nullable=False)
+
+    series_id = Column(String, nullable= False)
+
+    value = Column(Float, nullable=False)
+
+    observed_at = Column(DateTime, nullable=False)
+
+    created_at = Column(DateTime, server_default=func.now())
