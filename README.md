@@ -1,3 +1,44 @@
+# 📊 Macro Data Pipeline
+
+A Python-based data engineering project that collects, stores, and prepares multi-source time-series data for economic analysis and future forecasting.
+
+The system integrates macroeconomic indicators, environmental data, and (in progress) retail sales data into a unified PostgreSQL database designed for analytical workflows.
+
+---
+
+## 🚀 Features
+
+- 📈 Ingests macroeconomic data from the FRED API
+- 🌦 Collects historical weather data from Open-Meteo API
+- 🏪 (In progress) integrates U.S. Census retail sales data
+- 🗄 Stores structured time-series data in PostgreSQL
+- 🔁 Implements idempotent upsert logic to prevent duplicates
+- 🧱 Modular service-based architecture for each data source
+- ⚙️ Backfill system for historical data ingestion
+
+---
+
+## 🧱 Tech Stack
+
+- Python
+- PostgreSQL
+- SQLAlchemy
+- Alembic
+- REST APIs
+- Pandas (for analysis layer)
+
+---
+
+## 📊 Data Sources
+
+- Federal Reserve Economic Data (FRED)
+- Open-Meteo Weather API
+- U.S. Census Bureau (planned: retail trade data)
+
+---
+
+## 🏗 Architecture
+API Layer → Data Fetchers → Parsers → Database Layer → Analytics (future) \
 
 Each data source is handled independently via service modules and normalized into a unified schema.
 
@@ -44,7 +85,7 @@ services/\
 db/\
 jobs/\
 alembic/ \
-utilities/\
+utilities/
 
 ---
 
