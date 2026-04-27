@@ -20,7 +20,7 @@ def run(series_id, name):
         stmt = insert(EconomicObservation).values(rows)
 
         # UPSERT
-        stmt = stmt.on_conflict_do_update(
+        stmt = stmt.on_conflict_do_nothing(
             index_elements=["series_id", "observed_at"],
             set_={
                 "series_name": name,
