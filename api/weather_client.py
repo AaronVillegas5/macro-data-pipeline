@@ -12,7 +12,7 @@ def get_weather(lat, lon):
         "latitude": lat,
         "longitude": lon,
         "current_weather": True,
-        "hourly": "pressure_msl,temperature_2m,relative_humidity_2m"
+        "hourly": "pressure_msl,windspeed_10m,temperature_2m,relative_humidity_2m"
     }
 
     response = requests.get(url, params=params, timeout=10)

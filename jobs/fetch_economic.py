@@ -3,6 +3,7 @@ from db.models import EconomicObservation
 from db.connection import SessionLocal
 from utilities.logger import logger
 from sqlalchemy.dialects.postgresql import insert
+from services.snowflake_loader import load_economic_to_snowflake
 
 def run(series_id, name):
     logger.info(f"Fetching economic data for series_id={series_id}")
@@ -32,6 +33,7 @@ def run(series_id, name):
         db.commit()
 
         print(f"Processed {len(rows)} economic rows (duplicates skipped automatically)")
+        load_economic_to_snowflake(rows)
 
     except Exception as e:
         db.rollback()

@@ -16,5 +16,5 @@ def fetch_weather(lat, lon):
             "humidity": hourly["relative_humidity_2m"][i],
             "observed_at": times[i]
         })
-
+    
     return rows
