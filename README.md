@@ -22,6 +22,8 @@ The system integrates macroeconomic indicators, environmental data, and (in prog
 
 - Python
 - PostgreSQL
+- Snowflake
+- AWS S3
 - SQLAlchemy
 - Alembic
 - REST APIs

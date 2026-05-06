@@ -1,0 +1,35 @@
+// Python cache
+__pycache__/
+*.pyc
+
+// Virtual environments
+venv/
+.venv/
+
+// Git
+.git/
+
+// VSCode
+.vscode/
+
+// Environment files
+.env
+
+// OS junk
+.DS_Store
+Thumbs.db
+
+// Logs
+*.log
+
+// Pytest cache
+.pytest_cache/
+
+// Mypy
+.mypy_cache/
+
+// Ruff cache
+.ruff_cache/
+
+// Node (if ever used)
+node_modules/

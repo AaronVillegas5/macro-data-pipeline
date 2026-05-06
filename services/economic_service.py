@@ -4,7 +4,7 @@ from datetime import datetime
 def fetch_series(series_id):
     data = get_series(series_id)
 
-    # """ Obs look like
+    # """ obs look like
     # {
     #   "realtime_start": "2026-04-26",
     #   "realtime_end": "2026-04-26",

@@ -48,7 +48,10 @@ if __name__ == "__main__":
         "CPIAUCSL": "Inflation (CPI)",
         "UNRATE": "Unemployment Rate",
         "FEDFUNDS": "Federal Funds Rate",
-        "GDP": "GDP"
+        "GDP": "GDP",
+        "UMCSENT" : "Consumer Sentiment",
+        "TOTALSA" : "Total Vehicle Sales",
+        "RSXFS" : "Retail Sales"
     }
     for series_id, name in FRED_SERIES.items():
         run(series_id, name)

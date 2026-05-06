@@ -34,7 +34,7 @@ def run(lat, lon):
                 humidity=row["humidity"]
             )
 
-        db.add(record)
+            db.add(record)
         db.commit()
         logger.info(f"Inserted {len(rows)} weather records")
 
