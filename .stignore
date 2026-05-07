@@ -20,7 +20,7 @@ venv/
 Thumbs.db
 
 // Logs
-*.log
+
 
 // Pytest cache
 .pytest_cache/
@@ -33,3 +33,19 @@ Thumbs.db
 
 // Node (if ever used)
 node_modules/
+
+db_data/
+logs/
+__pycache__/
+*.pyc
+*.swp
+*.log
+alembic/versions/__pycache__/
+
+db_data/
+logs/
+__pycache__/
+*.pyc
+*.swp
+*.log
+__pycache__

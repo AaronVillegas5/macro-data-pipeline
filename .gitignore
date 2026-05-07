@@ -3,3 +3,6 @@ __pycache__
 *.pyc
 logs/
 *.log
+
+docker-compose.yml
+alembic.ini

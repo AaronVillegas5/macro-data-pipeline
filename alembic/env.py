@@ -27,8 +27,7 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 from db.connection import Base
-from db.models import WeatherObservation, Location, User
-
+from db import models  
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
@@ -61,21 +60,15 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
-def run_migrations_online() -> None:
-    """Run migrations in 'online' mode.
+from sqlalchemy import create_engine
 
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-    """
-    from sqlalchemy import create_engine
+def run_migrations_online():
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
-    connectable = create_engine(DATABASE_URL)
-
-    with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+    with engine.connect() as connection:
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

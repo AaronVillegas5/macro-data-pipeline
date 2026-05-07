@@ -9,9 +9,9 @@ def save_weather(data):
     try:
         stmt = insert(WeatherObservation).values(
             location_id=data["location_id"],
-            temperature_c=data["temperature"],
+            temperature_c=data["temperature_c"],
             wind_speed=data["wind_speed"],
-            observed_at=data["time"],
+            observed_at=data["observed_at"],
             pressure=data["pressure"],
             humidity=data["humidity"]
         )
