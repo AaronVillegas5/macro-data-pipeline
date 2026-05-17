@@ -1,6 +1,7 @@
 from api.weather_client import get_weather
 
 def fetch_weather(lat, lon):
+    # Get JSON data from API
     data = get_weather(lat, lon)
 
     hourly = data.get("hourly", {})

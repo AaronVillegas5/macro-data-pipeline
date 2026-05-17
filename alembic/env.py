@@ -17,6 +17,13 @@ from alembic import context
 # access to the values within the .ini file in use.
 config = context.config
 
+# Override sqlalchemy.url with environment variable
+config.set_main_option(
+    "sqlalchemy.url",
+    os.environ.get("DATABASE_URL")
+)
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is not set!")
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:
@@ -61,8 +68,6 @@ def run_migrations_offline() -> None:
 
 
 from sqlalchemy import create_engine
-
-DATABASE_URL = os.getenv("DATABASE_URL")
 
 def run_migrations_online():
     engine = create_engine(DATABASE_URL, pool_pre_ping=True)

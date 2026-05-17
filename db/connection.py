@@ -1,13 +1,21 @@
-from sqlalchemy import create_engine 
-from sqlalchemy.orm import declarative_base, sessionmaker 
 import os
 from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
 
-load_dotenv()
+load_dotenv(override=True)
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is not set!")
 
-DATABASE_URL = f"postgresql+psycopg://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
 
-engine = create_engine(DATABASE_URL, echo=False, future=True) 
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True) 
-Base = declarative_base()   #Base class for API data
+engine = create_engine(DATABASE_URL, echo=False, future=True)
 
+SessionLocal = sessionmaker(
+    bind=engine,
+    autoflush=False,
+    autocommit=False,
+    future=True
+)
+
+Base = declarative_base()

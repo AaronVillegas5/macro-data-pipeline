@@ -1,5 +1,0 @@
-# This directory is a Syncthing folder marker.
-# Do not delete.
-
-folderID: kkqke-noltn
-created: 2026-05-06T14:41:45-07:00

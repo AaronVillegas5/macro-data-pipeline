@@ -13,7 +13,7 @@ venv/
 .vscode/
 
 // Environment files
-.env
+
 
 // OS junk
 .DS_Store
@@ -35,17 +35,17 @@ Thumbs.db
 node_modules/
 
 db_data/
-logs/
+
 __pycache__/
 *.pyc
 *.swp
-*.log
+
 alembic/versions/__pycache__/
 
 db_data/
-logs/
+
 __pycache__/
 *.pyc
 *.swp
-*.log
+
 __pycache__

@@ -16,8 +16,14 @@ def save_weather(data):
             humidity=data["humidity"]
         )
 
-        stmt = stmt.on_conflict_do_nothing(
-            index_elements=["location_id", "observed_at"]
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["location_id", "observed_at"],
+            set_={
+                "temperature_c": stmt.excluded.temperature_c,
+                "wind_speed": stmt.excluded.wind_speed,
+                "pressure": stmt.excluded.pressure,
+                "humidity": stmt.excluded.humidity,
+            }
         )
 
         db.execute(stmt)
