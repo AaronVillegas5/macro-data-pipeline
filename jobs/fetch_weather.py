@@ -4,12 +4,13 @@ from db.connection import SessionLocal
 from utilities.logger import logger
 from services.save_weather import save_weather
 from services.snowflake_loader import load_weather_to_snowflake
+from db.snowflake_connection import get_snowflake_connection
 
 def run(lat, lon):
     logger.info(f"Fetching weather for lat={lat}, lon={lon}")
 
     db = SessionLocal()
-
+    conn = get_snowflake_connection()
     try:
         rows = fetch_weather(lat, lon)
 
@@ -39,7 +40,7 @@ def run(lat, lon):
             for row in rows
         ]
 
-        load_weather_to_snowflake(snowflake_rows)
+        load_weather_to_snowflake(conn, snowflake_rows)
 
     except Exception as e:
         logger.exception("Error occurred while processing weather")

@@ -1,41 +1,55 @@
 import requests, time
+from requests.exceptions import RequestException
 from utilities.logger import logger
-from services.s3_client import save_raw_response
 from db.connection import SessionLocal
+from services.s3_client import save_raw_response
+from datetime import datetime, timezone
 
-# First step of pipeline
-# Fetch weather data from Open-Meteo API with retries and save raw response to S3
 def get_weather(lat, lon):
     logger.info("Calling Open-Meteo API")
+
     url = "https://api.open-meteo.com/v1/forecast"
 
     params = {
         "latitude": lat,
         "longitude": lon,
         "current_weather": True,
-        "hourly": "pressure_msl,windspeed_10m,temperature_2m,relative_humidity_2m"  # Can be adjusted based on needs, will have to change db schema and models.py
+        "hourly": "pressure_msl,windspeed_10m,temperature_2m,relative_humidity_2m"
     }
 
-    for attempt in range(3):
+    last_error = None
+
+    for attempt in range(5):  # increase retries for flaky network
         try:
-            response = requests.get(url, params=params, timeout=20)
+            response = requests.get(url, params=params, timeout=(5, 30))
             response.raise_for_status()
+            data = response.json()
             break
 
-        except requests.RequestException as e:
-            logger.warning(f"Attempt {attempt+1} failed: {e}")
+        except RequestException as e:
+            last_error = e
+            wait = 2 ** attempt
+            logger.warning(f"Attempt {attempt+1} failed: {e}. retrying in {wait}s")
+            time.sleep(wait)
 
-            if attempt == 2:
-                raise
+    else:
+        raise RuntimeError(f"Open-Meteo failed after retries: {last_error}")
 
-            time.sleep(5)    
-    response.raise_for_status()
-
-    data = response.json()
     location_key = f"{lat}_{lon}"
     db = SessionLocal()
+
+    now = datetime.now(timezone.utc)
+
     try:
-        save_raw_response("weather", location_key, data, db)
+        save_raw_response(
+            "weather",
+            location_key,
+            data,
+            db,
+            start=now.isoformat(),
+            end=now.isoformat()
+        )
     finally:
-        db.close()            # always close even if save fails
+        db.close()
+
     return data

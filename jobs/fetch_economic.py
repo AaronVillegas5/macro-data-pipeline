@@ -4,11 +4,12 @@ from db.connection import SessionLocal
 from utilities.logger import logger
 from sqlalchemy.dialects.postgresql import insert
 from services.snowflake_loader import load_economic_to_snowflake
+from db.snowflake_connection import get_snowflake_connection
 
 def run(series_id, name):
     logger.info(f"Fetching economic data for series_id={series_id}")
     db = SessionLocal()
-
+    conn = get_snowflake_connection()
     try:
         rows = fetch_series(series_id)
 
@@ -33,7 +34,7 @@ def run(series_id, name):
         db.commit()
 
         print(f"Processed {len(rows)} economic rows (duplicates skipped automatically)")
-        load_economic_to_snowflake(rows)
+        load_economic_to_snowflake(conn, rows)
 
     except Exception as e:
         db.rollback()
