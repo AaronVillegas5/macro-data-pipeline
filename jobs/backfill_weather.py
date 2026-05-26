@@ -9,6 +9,9 @@ from db.snowflake_connection import get_snowflake_connection
 from services.snowflake_loader import load_weather_to_snowflake
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from db.models import Location
+from sqlalchemy import func
+
 
 def make_session():
     session = requests.Session()
@@ -24,6 +27,12 @@ def make_session():
     return session
 
 SESSION = make_session()
+
+
+def get_last_date(db, location_id):
+    return db.query(func.max(WeatherObservation.observed_at))\
+        .filter(WeatherObservation.location_id == location_id)\
+        .scalar()
 
 def get_historical_weather(lat, lon, start, end):
     url = "https://archive-api.open-meteo.com/v1/archive"
@@ -90,7 +99,8 @@ def run(lat, lon, location_id, start_date, end_date):
     end_date = min(end_date, today)
 
     conn = get_snowflake_connection()
-
+    if conn is None:
+        raise RuntimeError("Snowflake connection failed")
     try:
         while current <= end_date:
             chunk_end = min(current + timedelta(days=19), end_date)
@@ -103,6 +113,11 @@ def run(lat, lon, location_id, start_date, end_date):
                 continue
 
             rows = parse_hourly(data, location_id)
+
+            if not rows:
+                print(f"No data for {lat},{lon} in {current}")
+                current = chunk_end + timedelta(days=1)
+                continue
 
             try:                          # ← add this
                 save_rows(rows)
@@ -117,12 +132,15 @@ def run(lat, lon, location_id, start_date, end_date):
                     "longitude": lon,
                     "observed_at": row["observed_at"],
                     "temperature": row["temperature_c"],
-                    "precipitation": row["precipitation"] if row["precipitation"] is not None else 0.0
+                    "precipitation": row["precipitation"]
                 }
                 for row in rows
             ]
-            load_weather_to_snowflake(conn, snowflake_rows)
-            print(f"Sent {len(snowflake_rows)} to Snowflake")
+            try:
+                load_weather_to_snowflake(conn, snowflake_rows)
+                print(f"Sent {len(snowflake_rows)} to Snowflake")
+            except Exception as e:
+                print(f"Snowflake failed: {e}")
             current = chunk_end + timedelta(days=1)
             time.sleep(0.2)
 
@@ -136,10 +154,23 @@ def run(lat, lon, location_id, start_date, end_date):
         conn.close()
 
 if __name__ == "__main__":
-    run(
-        lat=33.6405,
-        lon=-117.6026,
-        location_id=1,
-        start_date=date(2023, 1, 1),
-        end_date=date(2023, 1, 31)
-    )
+    db = SessionLocal()
+
+    #locations = db.query(Location).filter(Location.name == "Big Bear Lake").all()
+    locations = db.query(Location).all()
+
+    for loc in locations:
+        last_date = get_last_date(db, loc.id)
+
+        start = last_date.date() + timedelta(days=1) if last_date else date(1960, 1, 1)
+        start = date(1950, 1, 1)
+        end = date(1960, 1, 1)
+        run(
+            lat=loc.latitude,
+            lon=loc.longitude,
+            location_id=loc.id,
+            start_date=start,
+            end_date=end
+        )
+
+    db.close()
