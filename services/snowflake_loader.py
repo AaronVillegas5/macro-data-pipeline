@@ -1,6 +1,14 @@
 from db.snowflake_connection import get_snowflake_connection
 from utilities.logger import logger
 from datetime import datetime
+def q(v):
+    if v is None:
+        return "NULL"
+    if isinstance(v, str):
+        return "'" + v.replace("'", "''") + "'"
+    if isinstance(v, datetime):
+        return "'" + v.strftime("%Y-%m-%d %H:%M:%S") + "'"
+    return str(v)
 
 def load_economic_to_snowflake(conn, rows):
     if not rows:
@@ -9,20 +17,30 @@ def load_economic_to_snowflake(conn, rows):
     cursor = conn.cursor()
 
     try:
-        for r in rows:
-            cursor.execute("""
-                MERGE INTO economic_observations AS target
-                USING (
-                    SELECT %s AS series_id, %s AS series_name,
-                           %s AS observed_at, %s AS value
-                ) AS source
-                ON target.series_id = source.series_id
-                AND target.observed_at = source.observed_at
-                WHEN NOT MATCHED THEN
-                    INSERT (series_id, series_name, observed_at, value)
-                    VALUES (source.series_id, source.series_name,
-                            source.observed_at, source.value)
-            """, (r["series_id"], r["series_name"], r["observed_at"], r["value"]))
+        batch_size = 500
+
+        for i in range(0, len(rows), batch_size):
+            batch = rows[i:i + batch_size]
+
+            values = ", ".join([
+                f"({q(r['series_id'])}, {q(r['series_name'])}, {q(r['observed_at'])}, {q(r['value'])})"
+                for r in batch
+            ])
+
+            sql = f"""
+            MERGE INTO economic_observations AS target
+            USING (
+                SELECT * FROM VALUES {values}
+                AS v(series_id, series_name, observed_at, value)
+            ) AS source
+            ON target.series_id = source.series_id
+            AND target.observed_at = source.observed_at
+            WHEN NOT MATCHED THEN
+                INSERT (series_id, series_name, observed_at, value)
+                VALUES (source.series_id, source.series_name, source.observed_at, source.value)
+            """
+
+            cursor.execute(sql)
 
         conn.commit()
         logger.info(f"Merged {len(rows)} economic rows to Snowflake")
@@ -60,10 +78,10 @@ def load_weather_to_snowflake(conn, rows):
 
             values = ", ".join([
                 f"({r['latitude']}, {r['longitude']}, "
-                f"'{r['observed_at'].strftime('%Y-%m-%d %H:%M:%S')}', "
+                f"{q(r['observed_at'])}, "
                 f"{r['temperature']}, "
-                f"{r['precipitation']}, "
-                f"'{current_ts}')"
+                f"{r['precipitation'] if r.get('precipitation') is not None else 0.0}, "
+                f"{q(current_ts)})"
                 for r in batch
             ])
 

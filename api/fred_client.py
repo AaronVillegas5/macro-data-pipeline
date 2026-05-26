@@ -1,4 +1,5 @@
 import requests, os
+from datetime import date
 from utilities.logger import logger
 from db.connection import SessionLocal
 from services.s3_client import save_raw_response
@@ -8,6 +9,8 @@ API_KEY = os.getenv('FRED_API_KEY')
 
 
 def get_series(series_id):
+    start = "2020-01-01"
+    end = date.today().isoformat()
     if not API_KEY:
         raise ValueError("Missing FRED_API_KEY in .env")
     logger.info(f"Calling FRED API for {series_id}")
@@ -25,7 +28,7 @@ def get_series(series_id):
     
     db = SessionLocal()
     try:
-        save_raw_response("fred", series_id, data, db)
+        save_raw_response("fred", series_id, data, db, start, end)
     finally:
         db.close()
     return data

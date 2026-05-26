@@ -41,7 +41,7 @@ def run(lat, lon):
         ]
 
         load_weather_to_snowflake(conn, snowflake_rows)
-
+    
     except Exception as e:
         logger.exception("Error occurred while processing weather")
         logger.error(f"Failed: {e}")

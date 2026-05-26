@@ -24,6 +24,7 @@ class WeatherObservation(Base):
     wind_speed = Column(Float)
     pressure = Column(Float)
     humidity = Column(Float)
+    precipitation = Column(Float)
 
     observed_at = Column(DateTime)
 

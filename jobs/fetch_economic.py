@@ -46,13 +46,34 @@ def run(series_id, name):
 
 if __name__ == "__main__":
     FRED_SERIES = {
+        # Inflation
         "CPIAUCSL": "Inflation (CPI)",
+        "CPILFESL": "Core CPI",
+        "PCEPI": "PCE Inflation",
+
+        # Labor
         "UNRATE": "Unemployment Rate",
+        "PAYEMS": "Nonfarm Payrolls",
+        "ICSA": "Initial Claims",
+
+        # Rates
         "FEDFUNDS": "Federal Funds Rate",
-        "GDP": "GDP",
-        "UMCSENT" : "Consumer Sentiment",
-        "TOTALSA" : "Total Vehicle Sales",
-        "RSXFS" : "Retail Sales"
+        "DGS10": "10Y Treasury",
+        "T10Y2Y": "Yield Curve Spread",
+
+        # Activity
+        "INDPRO": "Industrial Production",
+        "HOUST": "Housing Starts",
+
+        # Demand
+        "PCE": "Personal Consumption",
+
+        "CSUSHPISA": "Home Price Index",
+        "DCOILWTICO": "Crude Oil Price",
+        "JTSJOL": "Job Openings",
+        "HOUST": "Housing Starts",
+        "INDPRO": "Industrial Production",
+        "PAYEMS": "Nonfarm Payrolls"
     }
     for series_id, name in FRED_SERIES.items():
         run(series_id, name)
