@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from db.connection import Base
@@ -12,13 +12,28 @@ class User(Base):
 
 class WeatherObservation(Base):
     __tablename__ = "weather_observations"
+
     __table_args__ = (
-        UniqueConstraint("location_id", "observed_at", name="unique_location_time"),
+        UniqueConstraint(
+            "location_id",
+            "observed_at",
+            name="unique_location_time"
+        ),
+
+        Index(
+            "idx_weather_time",
+            "observed_at"
+        ),
+
     )
 
     id = Column(Integer, primary_key=True)
 
-    location_id = Column(Integer, ForeignKey("locations.id"), nullable=False)
+    location_id = Column(
+        Integer,
+        ForeignKey("locations.id"),
+        nullable=False
+    )
 
     temperature_c = Column(Float)
     wind_speed = Column(Float)
@@ -28,7 +43,10 @@ class WeatherObservation(Base):
 
     observed_at = Column(DateTime)
 
-    created_at = Column(DateTime, server_default=func.now())
+    created_at = Column(
+        DateTime,
+        server_default=func.now()
+    )
 
 class Location(Base):
     __tablename__ = "locations"
@@ -50,21 +68,29 @@ class Location(Base):
 
 class EconomicObservation(Base):
     __tablename__ = "economic_observations"
+
     __table_args__ = (
-        UniqueConstraint("series_id", "observed_at", name="unique_series_time"),
-        )
+        UniqueConstraint(
+            "series_id",
+            "observed_at",
+            name="unique_series_time"
+        ),
+    )
 
     id = Column(Integer, primary_key=True, nullable=False)
 
     series_name = Column(String)
 
-    series_id = Column(String, nullable= False)
+    series_id = Column(String, nullable=False)
 
     value = Column(Float, nullable=False)
 
     observed_at = Column(DateTime, nullable=False)
 
-    created_at = Column(DateTime, server_default=func.now())
+    created_at = Column(
+        DateTime,
+        server_default=func.now()
+    )
 
 # class RetailObservation(Base):
 #     __tablename__ = "retail_observations"
