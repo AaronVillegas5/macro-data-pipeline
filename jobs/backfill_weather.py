@@ -93,7 +93,7 @@ def save_rows(rows):
     finally:
         db.close()
 
-def run(lat, lon, location_id, start_date, end_date):
+def run(lat, lon, location_id, start_date, end_date, location_name=None):
     current = start_date
     today = date.today()
     end_date = min(end_date, today)
@@ -104,7 +104,8 @@ def run(lat, lon, location_id, start_date, end_date):
     try:
         while current <= end_date:
             chunk_end = min(current + timedelta(days=19), end_date)
-            print(f"Fetching {current} → {chunk_end}")
+            location_str = f"{location_name} ({lat},{lon})" if location_name else f"{lat},{lon}"
+            print(f"Fetching {current} → {chunk_end} for {location_str}")
             try:
                 data = get_historical_weather(lat, lon, str(current), str(chunk_end))
             except Exception as e:
@@ -157,20 +158,21 @@ if __name__ == "__main__":
     db = SessionLocal()
 
     #locations = db.query(Location).filter(Location.name == "Big Bear Lake").all()
-    locations = db.query(Location).all()
+    locations = db.query(Location).filter(Location.name != "Rancho Santa Margarita", Location.name != "Big Bear Lake").all()
 
     for loc in locations:
         last_date = get_last_date(db, loc.id)
 
         start = last_date.date() + timedelta(days=1) if last_date else date(1960, 1, 1)
         start = date(1950, 1, 1)
-        end = date(1960, 1, 1)
+        end = date.today() - timedelta(days=1)
         run(
             lat=loc.latitude,
             lon=loc.longitude,
             location_id=loc.id,
             start_date=start,
-            end_date=end
+            end_date=end,
+            location_name=loc.name
         )
 
     db.close()
