@@ -54,83 +54,108 @@ def load_economic_to_snowflake(conn, rows):
         cursor.close()
 
 
-from db.snowflake_connection import get_snowflake_connection
-from utilities.logger import logger
-
 
 def load_weather_to_snowflake(conn, rows):
     if not rows:
         return
+    created_at = datetime.utcnow()
 
-    batch_size = 500
     cursor = conn.cursor()
 
     try:
+        batch_size = 50000  # bigger batches = fewer round trips
+
         for i in range(0, len(rows), batch_size):
             batch = rows[i:i + batch_size]
 
-            start_date = batch[0]["observed_at"]
-            end_date = batch[-1]["observed_at"]
+            logger.info(f"Staging batch {i}-{i+len(batch)} ({len(batch)} rows)")
+            print("INSERTING INTO SNOWFLAKE:", len(batch))
+            print(batch[0])
 
-            logger.info(f"Loading Snowflake batch: {start_date} → {end_date} ({len(batch)} rows)")
+            
 
-            current_ts = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-
-            values = ", ".join([
-                f"({r['latitude']}, {r['longitude']}, "
-                f"{q(r['observed_at'])}, "
-                f"{r['temperature']}, "
-                f"{r['precipitation'] if r.get('precipitation') is not None else 0.0}, "
-                f"{q(current_ts)})"
+            cursor.executemany("""
+            INSERT INTO weather_observations_stage (
+                latitude,
+                longitude,
+                observed_at,
+                temperature,
+                precipitation,
+                created_at
+            )
+            VALUES (%s, %s, %s, %s, %s, %s)
+            """,
+            [
+                (
+                    r["latitude"],
+                    r["longitude"],
+                    r["observed_at"],
+                    r.get("temperature"),
+                    r.get("precipitation", 0.0),
+                    created_at
+                )
                 for r in batch
             ])
-
-            sql = f"""
-            MERGE INTO weather_observations AS target
-            USING (
-                SELECT * FROM VALUES {values}
-                AS v(
-                    latitude,
-                    longitude,
-                    observed_at,
-                    temperature,
-                    precipitation,
-                    created_at
-                )
-            ) AS source
-            ON target.latitude = source.latitude
-            AND target.longitude = source.longitude
-            AND target.observed_at = source.observed_at
-            WHEN NOT MATCHED THEN
-                INSERT (
-                    latitude,
-                    longitude,
-                    observed_at,
-                    temperature,
-                    precipitation,
-                    created_at
-                )
-                VALUES (
-                    source.latitude,
-                    source.longitude,
-                    source.observed_at,
-                    source.temperature,
-                    source.precipitation,
-                    source.created_at
-                )
-            """
-
-            cursor.execute(sql)
-
         conn.commit()
-        num_batches = (len(rows) + batch_size - 1) // batch_size
-
-        logger.info(f"Merged {len(rows)} weather rows in {num_batches} batch(es)")
 
     except Exception as e:
         conn.rollback()
-        logger.error(f"Snowflake load failed: {e}")
+        logger.error(f"Staging load failed: {e}")
         raise
 
     finally:
         cursor.close()
+
+def merge_weather(conn):
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+        MERGE INTO weather_observations t
+        USING (
+            SELECT *
+            FROM weather_observations_stage
+        ) s
+        ON t.latitude = s.latitude
+        AND t.longitude = s.longitude
+        AND t.observed_at = s.observed_at
+        WHEN NOT MATCHED THEN
+            INSERT (
+                latitude,
+                longitude,
+                observed_at,
+                temperature,
+                precipitation,
+                created_at
+            )
+            VALUES (
+                s.latitude,
+                s.longitude,
+                s.observed_at,
+                s.temperature,
+                s.precipitation,
+                s.created_at
+            )
+        """)
+
+        conn.commit()
+
+    finally:
+        cursor.close()
+def clear_stage(conn):
+    cursor = conn.cursor()
+    try:
+        cursor.execute("TRUNCATE TABLE weather_observations_stage")
+        conn.commit()
+    finally:
+        cursor.close()
+
+def load_weather_pipeline(conn, rows):
+    load_weather_to_snowflake(conn, rows)
+    try:
+        merge_weather(conn)
+    except Exception:
+        logger.error("Merge failed")
+        raise
+    finally:
+        clear_stage(conn)
