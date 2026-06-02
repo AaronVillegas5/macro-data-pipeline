@@ -3,13 +3,18 @@ from datetime import date, timedelta, datetime
 import time
 from sqlalchemy.dialects.postgresql import insert
 from db.connection import SessionLocal
-from db.models import WeatherObservation
+from db.models import WeatherObservation, Location
 from services.s3_client import save_raw_response
 from db.snowflake_connection import get_snowflake_connection
-from services.snowflake_loader import load_weather_to_snowflake
+from services.snowflake_loader import load_weather_pipeline
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from sqlalchemy import func
 
+
+# ---------------------------
+# HTTP session with retries
+# ---------------------------
 def make_session():
     session = requests.Session()
     retry = Retry(
@@ -23,8 +28,48 @@ def make_session():
     session.mount("https://", adapter)
     return session
 
+
 SESSION = make_session()
 
+
+# ---------------------------
+# DB helpers
+# ---------------------------
+def get_last_date(db, location_id):
+    return (
+        db.query(func.max(WeatherObservation.observed_at))
+        .filter(WeatherObservation.location_id == location_id)
+        .scalar()
+    )
+
+
+def save_rows(rows):
+    db = SessionLocal()
+    try:
+        if not rows:
+            return
+
+        stmt = insert(WeatherObservation).values(rows)
+        stmt = stmt.on_conflict_do_nothing(
+            index_elements=["location_id", "observed_at"]
+        )
+
+        db.execute(stmt)
+        db.commit()
+
+        print(f"Processed {len(rows)} rows")
+
+    except Exception as e:
+        db.rollback()
+        print("Postgres error:", e)
+        raise
+    finally:
+        db.close()
+
+
+# ---------------------------
+# API fetch + parse
+# ---------------------------
 def get_historical_weather(lat, lon, start, end):
     url = "https://archive-api.open-meteo.com/v1/archive"
     params = {
@@ -35,111 +80,166 @@ def get_historical_weather(lat, lon, start, end):
         "hourly": "temperature_2m,pressure_msl,relative_humidity_2m,windspeed_10m,precipitation",
         "timezone": "auto"
     }
+
     response = SESSION.get(url, params=params, timeout=(20, 30))
     response.raise_for_status()
     data = response.json()
 
-    location_key = f"{lat}_{lon}"
     db = SessionLocal()
     try:
-        save_raw_response("weather", location_key, data, db, start=start, end=end)
+        save_raw_response(
+            "weather",
+            f"{lat}_{lon}",
+            data,
+            db,
+            start=start,
+            end=end
+        )
     finally:
         db.close()
+
     return data
+
 
 def safe_get(arr, i):
     return arr[i] if arr and i < len(arr) else None
 
-def parse_hourly(data, location_id):
+
+def parse_hourly(data, location_id, lat, lon):
     hourly = data.get("hourly", {})
     if not hourly:
         return []
+
     results = []
-    for i in range(len(hourly["time"])):
+
+    times = hourly.get("time", [])
+    temps = hourly.get("temperature_2m")
+    wind = hourly.get("windspeed_10m")
+    pressure = hourly.get("pressure_msl")
+    humidity = hourly.get("relative_humidity_2m")
+    precip = hourly.get("precipitation")
+
+    for i in range(len(times)):
         results.append({
             "location_id": location_id,
-            "temperature_c": safe_get(hourly.get("temperature_2m"), i),
-            "wind_speed": safe_get(hourly.get("windspeed_10m"), i),
-            "pressure": safe_get(hourly.get("pressure_msl"), i),
-            "humidity": safe_get(hourly.get("relative_humidity_2m"), i),
-            "observed_at": datetime.fromisoformat(hourly["time"][i]),
-            "precipitation": safe_get(hourly.get("precipitation"), i)
+            "temperature_c": safe_get(temps, i),
+            "wind_speed": safe_get(wind, i),
+            "pressure": safe_get(pressure, i),
+            "humidity": safe_get(humidity, i),
+            "observed_at": datetime.fromisoformat(times[i]),
+            "precipitation": safe_get(precip, i),
         })
+
     return results
 
-def save_rows(rows):
-    db = SessionLocal()
-    try:
-        if not rows:
-            return
-        stmt = insert(WeatherObservation).values(rows)
-        stmt = stmt.on_conflict_do_nothing(index_elements=["location_id", "observed_at"])
-        db.execute(stmt)
-        db.commit()
-        print(f"Processed {len(rows)} rows (duplicates skipped automatically)")
-    except Exception as e:
-        db.rollback()
-        print("Error:", e)
-        raise
-    finally:
-        db.close()
 
-def run(lat, lon, location_id, start_date, end_date):
+# ---------------------------
+# CORE RUN (NO FLUSH HERE)
+# ---------------------------
+def run(lat, lon, location_id, start_date, end_date, location_name=None):
     current = start_date
-    today = date.today()
-    end_date = min(end_date, today)
+    end_date = min(end_date, date.today())
 
+    buffer = []
+
+    while current <= end_date:
+        chunk_end = min(current + timedelta(days=19), end_date)
+
+        print(f"Fetching {current} → {chunk_end} for {location_name}")
+
+        try:
+            data = get_historical_weather(lat, lon, str(current), str(chunk_end))
+        except Exception as e:
+            print(f"Skipping chunk: {e}")
+            current = chunk_end + timedelta(days=1)
+            continue
+
+        rows = parse_hourly(data, location_id, lat, lon)
+
+        if not rows:
+            current = chunk_end + timedelta(days=1)
+            continue
+
+        # Postgres insert (optional but kept)
+        try:
+            save_rows(rows)
+        except Exception as e:
+            print(f"Postgres failed: {e}")
+            current = chunk_end + timedelta(days=1)
+            continue
+
+        # ---------------------------
+        # BUFFER FOR SNOWFLAKE
+        # ---------------------------
+        buffer.extend([
+            {
+                "latitude": lat,
+                "longitude": lon,
+                "observed_at": r["observed_at"],
+                "temperature": r.get("temperature_c"),
+                "precipitation": r.get("precipitation", 0.0),
+            }
+            for r in rows
+        ])
+
+        current = chunk_end + timedelta(days=1)
+        time.sleep(0.2)
+
+    # return buffer so caller controls flushing
+    return buffer
+
+
+# ---------------------------
+# MAIN
+# ---------------------------
+if __name__ == "__main__":
+    db = SessionLocal()
     conn = get_snowflake_connection()
 
+    if not conn:
+        print("WARNING: Snowflake connection failed. Running in Postgres-only mode.")
+
     try:
-        while current <= end_date:
-            chunk_end = min(current + timedelta(days=19), end_date)
-            print(f"Fetching {current} → {chunk_end}")
-            try:
-                data = get_historical_weather(lat, lon, str(current), str(chunk_end))
-            except Exception as e:
-                print(f"Skipping {current} → {chunk_end}: {e}")
-                current = chunk_end + timedelta(days=1)
-                continue
+        locations = db.query(Location).filter(
+            Location.name != "Rancho Santa Margarita",
+            Location.name != "Big Bear Lake",
+            Location.name != "San Diego"
+        ).all()
 
-            rows = parse_hourly(data, location_id)
+        for loc in locations:
+            last_date = get_last_date(db, loc.id)
+            start = last_date.date() + timedelta(days=1) if last_date else date(1950, 1, 1)
+            end = date.today() - timedelta(days=1)
 
-            try:                          # ← add this
-                save_rows(rows)
-            except Exception as e:
-                print(f"DB save failed for {current} → {chunk_end}: {e}")
-                current = chunk_end + timedelta(days=1)
-                continue                  # ← keep going instead of dying
+            print(f"\n=== {loc.name} ===")
+            buffer = run(
+                lat=loc.latitude,
+                lon=loc.longitude,
+                location_id=loc.id,
+                start_date=start,
+                end_date=end,
+                location_name=loc.name
+            )
 
-            snowflake_rows = [
-                {
-                    "latitude": lat,
-                    "longitude": lon,
-                    "observed_at": row["observed_at"],
-                    "temperature": row["temperature_c"],
-                    "precipitation": row["precipitation"] if row["precipitation"] is not None else 0.0
-                }
-                for row in rows
-            ]
-            load_weather_to_snowflake(conn, snowflake_rows)
-            print(f"Sent {len(snowflake_rows)} to Snowflake")
-            current = chunk_end + timedelta(days=1)
-            time.sleep(0.2)
-
-        print("Backfill complete!")
-
-    except Exception as e:
-        print(f"Backfill failed: {e}")   # ← catch top level errors too
-        raise
+            # ---------------------------
+            # SINGLE FLUSH PER LOCATION
+            # ---------------------------
+            if buffer:
+                if conn:
+                    print(f"Flushing {len(buffer)} rows to Snowflake for {loc.name}")
+                    try:
+                        load_weather_pipeline(conn, buffer)
+                    except Exception as e:
+                        print(f"Snowflake failed for {loc.name}, but Postgres succeeded. Error: {e}")
+                else:
+                    print(f"Skipping Snowflake flush for {loc.name} (No connection).")
+                
+                del buffer
+                import gc
+                gc.collect()
 
     finally:
-        conn.close()
-
-if __name__ == "__main__":
-    run(
-        lat=33.6405,
-        lon=-117.6026,
-        location_id=1,
-        start_date=date(2023, 1, 1),
-        end_date=date(2023, 1, 31)
-    )
+        if conn:
+            conn.close()
+        db.close()
+    print("Backfill complete!")
