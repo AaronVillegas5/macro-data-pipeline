@@ -26,6 +26,7 @@ import os
 import sys
 
 from dotenv import load_dotenv
+# pyrefly: ignore [missing-import]
 from google.cloud import bigquery
 from sqlalchemy.orm import Session
 
@@ -104,16 +105,16 @@ def migrate(batch_size: int = 500, dry_run: bool = False) -> None:
         if total_rows == 0:
             logger.info("Nothing to migrate. Exiting.")
             return
-
+        # Replace the offset logic with keyset pagination
         migrated = 0
         total_errors = 0
-        offset = 0
+        last_id = 0  # Track the highest ID processed
 
         while True:
             batch_orm = (
                 db.query(WeatherObservation)
+                .filter(WeatherObservation.id > last_id) # Jump instantly to the next set
                 .order_by(WeatherObservation.id)
-                .offset(offset)
                 .limit(batch_size)
                 .all()
             )
@@ -125,7 +126,9 @@ def migrate(batch_size: int = 500, dry_run: bool = False) -> None:
             error_count = _stream_batch(bq_client, table_ref, rows, dry_run)
             total_errors += error_count
             migrated += len(rows)
-            offset += batch_size
+            
+            # Update last_id for the next loop iteration
+            last_id = batch_orm[-1].id
 
             logger.info(
                 "Progress: %d / %d rows streamed  (errors in this batch: %d)",
