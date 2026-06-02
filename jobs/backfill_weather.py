@@ -194,7 +194,11 @@ def run(lat, lon, location_id, start_date, end_date, location_name=None):
 # ---------------------------
 if __name__ == "__main__":
     db = SessionLocal()
-    conn = get_snowflake_connection()
+    try:
+        conn = get_snowflake_connection()
+    except Exception as e: 
+        print(f"WARNING: Could not connect to Snowflake ({e}).")
+        conn = None
 
     if not conn:
         print("WARNING: Snowflake connection failed. Running in Postgres-only mode.")
