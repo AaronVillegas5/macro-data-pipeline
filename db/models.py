@@ -12,7 +12,6 @@ class User(Base):
 
 class WeatherObservation(Base):
     __tablename__ = "weather_observations"
-
     __table_args__ = (
         UniqueConstraint(
             "location_id",
@@ -34,15 +33,12 @@ class WeatherObservation(Base):
         ForeignKey("locations.id"),
         nullable=False
     )
-
     temperature_c = Column(Float)
     wind_speed = Column(Float)
     pressure = Column(Float)
     humidity = Column(Float)
     precipitation = Column(Float)
-
     observed_at = Column(DateTime)
-
     created_at = Column(
         DateTime,
         server_default=func.now()
