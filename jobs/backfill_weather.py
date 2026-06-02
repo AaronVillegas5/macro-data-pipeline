@@ -197,7 +197,7 @@ if __name__ == "__main__":
     conn = get_snowflake_connection()
 
     if not conn:
-        raise RuntimeError("Snowflake connection failed")
+        print("WARNING: Snowflake connection failed. Running in Postgres-only mode.")
 
     try:
         locations = db.query(Location).filter(
@@ -208,13 +208,10 @@ if __name__ == "__main__":
 
         for loc in locations:
             last_date = get_last_date(db, loc.id)
-
             start = last_date.date() + timedelta(days=1) if last_date else date(1950, 1, 1)
             end = date.today() - timedelta(days=1)
 
-            start = date(1950, 1, 1)  # HARDCODED FOR BACKFILL TESTING
             print(f"\n=== {loc.name} ===")
-
             buffer = run(
                 lat=loc.latitude,
                 lon=loc.longitude,
@@ -228,15 +225,21 @@ if __name__ == "__main__":
             # SINGLE FLUSH PER LOCATION
             # ---------------------------
             if buffer:
-                print(f"Flushing {len(buffer)} rows to Snowflake for {loc.name}")
-                print("CALLING SNOWFLAKE PIPELINE", len(buffer))
-                load_weather_pipeline(conn, buffer)
+                if conn:
+                    print(f"Flushing {len(buffer)} rows to Snowflake for {loc.name}")
+                    try:
+                        load_weather_pipeline(conn, buffer)
+                    except Exception as e:
+                        print(f"Snowflake failed for {loc.name}, but Postgres succeeded. Error: {e}")
+                else:
+                    print(f"Skipping Snowflake flush for {loc.name} (No connection).")
+                
                 del buffer
                 import gc
                 gc.collect()
 
     finally:
-        conn.close()
+        if conn:
+            conn.close()
         db.close()
-
     print("Backfill complete!")
