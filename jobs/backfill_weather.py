@@ -10,6 +10,7 @@ from services.snowflake_loader import load_weather_pipeline
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from sqlalchemy import func
+from db.locations_data import CITIES_TO_ADD
 
 
 # ---------------------------
@@ -202,13 +203,34 @@ if __name__ == "__main__":
 
     if not conn:
         print("WARNING: Snowflake connection failed. Running in Postgres-only mode.")
+    for city_data in CITIES_TO_ADD:
+        # Check if it exists
+        existing_location = db.query(Location).filter_by(
+            latitude=city_data["latitude"], 
+            longitude=city_data["longitude"]
+        ).first()
+        
+        if not existing_location:
+            # **city_data unpacks the dictionary directly into the Location model
+            new_loc = Location(**city_data) 
+            db.add(new_loc)
+            print(f"Added: {city_data['name']}")
+        else:
+            print(f"Skipped: {city_data['name']}")
 
     try:
-        locations = db.query(Location).filter(
-            Location.name != "Rancho Santa Margarita",
-            Location.name != "Big Bear Lake",
-            Location.name != "San Diego"
-        ).all()
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"Error: {e}")
+
+    try:
+        locations = db.query(Location).all()
+        # locations = db.query(Location).filter(
+        #     Location.name != "Rancho Santa Margarita",
+        #     Location.name != "Big Bear Lake",
+        #     Location.name != "San Diego"
+        # ).all()
 
         for loc in locations:
             last_date = get_last_date(db, loc.id)
@@ -225,9 +247,9 @@ if __name__ == "__main__":
                 location_name=loc.name
             )
 
-            # ---------------------------
-            # SINGLE FLUSH PER LOCATION
-            # ---------------------------
+    # ---------------------------
+    # SINGLE FLUSH PER LOCATION
+    # ---------------------------
             if buffer:
                 if conn:
                     print(f"Flushing {len(buffer)} rows to Snowflake for {loc.name}")
