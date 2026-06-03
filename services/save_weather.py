@@ -4,7 +4,7 @@ import logging
 from db.connection import SessionLocal
 from db.models import WeatherObservation
 from sqlalchemy.dialects.postgresql import insert
-
+# pyrefly: ignore [missing-import]
 from google.cloud import bigquery
 
 logger = logging.getLogger(__name__)
@@ -47,7 +47,8 @@ def save_weather_to_postgres(data: dict) -> None:
 
         db.execute(stmt)
         db.commit()
-        logger.debug("PostgreSQL: upserted observation for location_id=%s", data.get("location_id"))
+        logger.debug(
+            "PostgreSQL: upserted observation for location_id=%s", data.get("location_id"))
 
     except Exception as e:
         db.rollback()
@@ -97,7 +98,8 @@ def save_weather_to_bigquery(data: dict) -> None:
     if errors:
         raise RuntimeError(f"BigQuery streaming insert errors: {errors}")
 
-    logger.debug("BigQuery: streamed observation for location_id=%s", data.get("location_id"))
+    logger.debug("BigQuery: streamed observation for location_id=%s",
+                 data.get("location_id"))
 
 
 # ---------------------------------------------------------------------------
@@ -116,7 +118,8 @@ def save_weather(data: dict) -> None:
     except Exception as e:
         # Error already logged inside save_weather_to_postgres; swallow here
         # so BigQuery write still proceeds.
-        logger.warning("PostgreSQL sink failed, continuing to BigQuery. Error: %s", e)
+        logger.warning(
+            "PostgreSQL sink failed, continuing to BigQuery. Error: %s", e)
 
     try:
         save_weather_to_bigquery(data)
