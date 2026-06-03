@@ -2,7 +2,7 @@
 
 A Python-based data engineering project that collects, stores, and prepares multi-source time-series data for economic analysis and future forecasting.
 
-The system integrates macroeconomic indicators, environmental data, and (in progress) retail sales data into a unified PostgreSQL database designed for analytical workflows.
+The system integrates macroeconomic indicators, environmental data, and (in progress) retail sales data into a unified PostgreSQL database designed for analytical workflows. Weather observations are dual-written to Google BigQuery for scalable cloud analytics.
 
 ---
 
@@ -11,7 +11,9 @@ The system integrates macroeconomic indicators, environmental data, and (in prog
 - 📈 Ingests macroeconomic data from the FRED API
 - 🌦 Collects historical weather data from Open-Meteo API
 - 🏪 (In progress) integrates U.S. Census retail sales data
-- 🗄 Stores structured time-series data in PostgreSQL and Snowflake for advanced analytics 
+- 🗄 Stores structured time-series data in PostgreSQL and Snowflake for advanced analytics
+- 🔵 Dual-writes weather observations to **Google BigQuery** as a cloud analytics sink
+- 📦 One-time historical migration script (`scripts/migrate_historical_weather.py`) to backfill BigQuery from existing PostgreSQL records
 - ☁️ Persists raw API JSON responses to AWS S3 for auditability and reprocessing
 - 🔁 Implements idempotent upsert logic to prevent duplicates
 - 🧱 Modular service-based architecture for each data source
@@ -23,6 +25,7 @@ The system integrates macroeconomic indicators, environmental data, and (in prog
 
 - Python
 - PostgreSQL
+- Google BigQuery
 - Snowflake
 - AWS S3
 - SQLAlchemy
@@ -54,13 +57,19 @@ pip install -r requirements.txt
 ```
 
 **3. Environment Variables**
-Create a `.env` file in the root directory and add your necessary credentials:
+Copy `.env.example` to `.env` and fill in your credentials:
 ```env
 FRED_API_KEY=your_fred_api_key
 DATABASE_URL=postgresql://user:password@localhost:5432/db
 SNOWFLAKE_ACCOUNT=your_snowflake_account
 AWS_ACCESS_KEY_ID=your_aws_key
 AWS_SECRET_ACCESS_KEY=your_aws_secret
+BIGQUERY_PROJECT_ID=your_gcp_project_id
+```
+
+For BigQuery, authenticate via Application Default Credentials:
+```bash
+gcloud auth application-default login
 ```
 
 **4. Run Database Migrations**
@@ -72,22 +81,44 @@ alembic upgrade head
 
 ## 🏗 Architecture
 
-API Layer (FRED, Open-Meteo) → Data Fetchers → Raw JSON Storage (AWS S3)
-                                           ↳ Parsers → Cleaned Data → PostgreSQL & Snowflake
+```
+API Layer (FRED, Open-Meteo)
+        │
+        ▼
+  Data Fetchers
+        │
+        ├──▶ Raw JSON  ──▶ AWS S3 (audit / reprocessing)
+        │
+        └──▶ Parsers / Cleaners
+                  │
+                  ├──▶ PostgreSQL  (upsert via SQLAlchemy)
+                  ├──▶ Google BigQuery  (streaming insert — dual-sink)
+                  └──▶ Snowflake  (analytical warehouse)
+```
 
-Each data source is handled independently via modular service scripts. To ensure data integrity, raw API responses are persisted directly to AWS S3 for auditability and potential reprocessing. Simultaneously, the data is parsed, cleaned, and loaded into both PostgreSQL and Snowflake, where it is optimized for time-series analysis and dashboarding.
+Each data source is handled independently via modular service scripts. Weather observations are written to **both PostgreSQL and BigQuery** in the same pipeline call via `save_weather()`, with each sink isolated in its own `try/except` block — a failure in one never blocks the other. Raw API responses are persisted to AWS S3 for auditability and reprocessing.
 ---
 
 ## 🗄 Database Schema
 
-Core tables:
+**PostgreSQL / Snowflake**
 
-- `economic_observations`
-- `weather_observations`
-- `retail_observations` (planned)
-- `locations`
+| Table | Description |
+|---|---|
+| `weather_observations` | Weather readings with upsert deduplication |
+| `economic_observations` | FRED macroeconomic time-series |
+| `locations` | Location reference table (lat/lon, region) |
+| `retail_observations` | Planned: U.S. Census retail data |
 
-All tables are optimized for time-series analysis with uniqueness constraints for deduplication.
+All tables use uniqueness constraints and indexed timestamp columns for time-series deduplication.
+
+**Google BigQuery** — `weather_data` dataset
+
+| Table | Description |
+|---|---|
+| `observations` | Streaming weather sink, partitioned by `DATE(observed_at)`, clustered by `location_id` |
+
+See [`sql/postgres/bigquery_create_weather_observations.sql`](sql/postgres/bigquery_create_weather_observations.sql) for the full DDL.
 
 ---
 
@@ -105,11 +136,15 @@ The goal is to build a foundation for real-world economic analysis and predictiv
 
 ## 🔍 Analytical Queries
 
-The `sql/` directory contains pre-built analytical queries demonstrating how the structured data can be leveraged for insights. Examples include:
+The `sql/` directory is organised by target database:
 
+**`sql/postgres/`** — PostgreSQL queries
 - Historical temperature trends (`avg_temp_before_and_after_2000.sql`)
 - Extreme weather event tracking (`hottest_years.sql`, `rainiest_years.sql`)
 - Monthly and annual climate aggregations
+
+**`sql/biquery/`** — BigQuery queries
+- 30-day rolling average temperature per location (`avg_temp_rolling_30_days.sql`)
 
 ---
 
@@ -126,15 +161,19 @@ The `sql/` directory contains pre-built analytical queries demonstrating how the
 ## 📁 Project Structure
 
 ```text
-├── api/          # API clients for FRED and Open-Meteo
-├── alembic/      # Database migration scripts
-├── db/           # SQLAlchemy models and Snowflake connections
-├── jobs/         # Automated scripts for fetching and backfilling data
-├── services/     # Core business logic (S3 uploads, data parsing)
-├── sql/          # Analytical SQL queries for data exploration
-├── utilities/    # Helper functions (logging)
-├── Dockerfile    # Containerization configuration
-└── main.py       # Application entry point
+├── api/            # API clients for FRED and Open-Meteo
+├── alembic/        # Database migration scripts
+├── db/             # SQLAlchemy models and Snowflake connections
+├── jobs/           # Automated scripts for fetching and backfilling data
+├── scripts/        # One-off utility scripts
+│   └── migrate_historical_weather.py  # Backfill PostgreSQL → BigQuery
+├── services/       # Core business logic (S3 uploads, data parsing, dual-sink writes)
+├── sql/
+│   ├── postgres/   # PostgreSQL analytical queries
+│   └── biquery/    # BigQuery analytical queries
+├── utilities/      # Helper functions (logging)
+├── Dockerfile      # Containerization configuration
+└── main.py         # Application entry point
 
 ---
 
