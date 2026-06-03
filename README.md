@@ -118,7 +118,7 @@ All tables use uniqueness constraints and indexed timestamp columns for time-ser
 |---|---|
 | `observations` | Streaming weather sink, partitioned by `DATE(observed_at)`, clustered by `location_id` |
 
-See [`sql/postgres/bigquery_create_weather_observations.sql`](sql/postgres/bigquery_create_weather_observations.sql) for the full DDL.
+See [`sql/bigquery/bigquery_create_weather_observations.sql`](sql/bigquery/bigquery_create_weather_observations.sql) for the full DDL.
 
 ---
 
@@ -143,7 +143,7 @@ The `sql/` directory is organised by target database:
 - Extreme weather event tracking (`hottest_years.sql`, `rainiest_years.sql`)
 - Monthly and annual climate aggregations
 
-**`sql/biquery/`** — BigQuery queries
+**`sql/bigquery/`** — BigQuery queries
 - 30-day rolling average temperature per location (`avg_temp_rolling_30_days.sql`)
 
 ---
@@ -170,7 +170,7 @@ The `sql/` directory is organised by target database:
 ├── services/       # Core business logic (S3 uploads, data parsing, dual-sink writes)
 ├── sql/
 │   ├── postgres/   # PostgreSQL analytical queries
-│   └── biquery/    # BigQuery analytical queries
+│   └── bigquery/   # BigQuery analytical queries
 ├── utilities/      # Helper functions (logging)
 ├── Dockerfile      # Containerization configuration
 └── main.py         # Application entry point
