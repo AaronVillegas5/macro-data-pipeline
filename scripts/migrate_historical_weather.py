@@ -46,7 +46,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 _BQ_DATASET = "weather_data"
-_BQ_TABLE = "observations"
+_BQ_TABLE = "observations_v2"
 
 
 # ---------------------------------------------------------------------------
@@ -164,7 +164,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=500,
+        default=5000,
         help="Number of rows to stream per BigQuery API call (default: 500).",
     )
     parser.add_argument(
