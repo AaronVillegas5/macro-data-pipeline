@@ -1,0 +1,9 @@
+SELECT
+    EXTRACT(YEAR FROM observed_at) AS year,
+    AVG(temperature_c) AS avg_temp
+FROM 
+    macro-data-pipeline-498302.weather_data.observations_v2
+WHERE EXTRACT(YEAR FROM observed_at) < EXTRACT(YEAR FROM CURRENT_DATE())
+GROUP BY
+    year
+ORDER BY year
