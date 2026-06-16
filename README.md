@@ -11,13 +11,14 @@ The system integrates macroeconomic indicators, environmental data, and (in prog
 - 📈 Ingests macroeconomic data from the FRED API
 - 🌦 Collects historical weather data from Open-Meteo API
 - 🏪 (In progress) integrates U.S. Census retail sales data
-- 🗄 Stores structured time-series data in PostgreSQL and Snowflake for advanced analytics
+- 🗄 Stores structured time-series data in PostgreSQL and Snowflake (using robust MERGE INTO upserts) for advanced analytics
 - 🔵 Dual-writes weather observations to **Google BigQuery** as a cloud analytics sink
-- 📦 One-time historical migration script (`scripts/migrate_historical_weather.py`) to backfill BigQuery from existing PostgreSQL records
+- 📦 One-time historical migration script (`scripts/migrate_historical_weather.py`) using keyset pagination to backfill BigQuery `observations_v2` from PostgreSQL
 - ☁️ Persists raw API JSON responses to AWS S3 for auditability and reprocessing
-- 🔁 Implements idempotent upsert logic to prevent duplicates
+- 🔁 Implements idempotent upsert logic to prevent duplicates and safely handle missing time-series gaps
 - 🧱 Modular service-based architecture for each data source
 - ⚙️ Backfill system for historical data ingestion
+
 
 ---
 
