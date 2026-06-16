@@ -19,9 +19,19 @@ _BQ_TABLE = "observations"
 # ---------------------------------------------------------------------------
 
 def save_weather_to_postgres(data: dict) -> None:
-    """Upsert a single weather observation into PostgreSQL.
+    """
+    Upserts a single weather observation into PostgreSQL using ON CONFLICT DO UPDATE.
 
-    Conflicts on (location_id, observed_at) will update the mutable fields.
+    Data Validation & Edge Cases:
+    - Null values and missing timeseries data in mutable fields (e.g., pressure, humidity) will safely 
+      overwrite existing records if an update occurs.
+    - Time-Series Gaps: Resolves historical gaps by allowing missing observations to be backfilled safely 
+      without duplicating existing data points.
+
+    Cloud Destination (PostgreSQL):
+    - Uses SQLAlchemy's PostgreSQL dialect `insert().on_conflict_do_update()`.
+    - Conflicts on the unique composite index (location_id, observed_at) trigger an update of mutable fields.
+    - Ensures atomicity through transaction rollbacks on failure.
     """
     db = SessionLocal()
 

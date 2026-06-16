@@ -84,6 +84,22 @@ def _stream_batch(client: bigquery.Client, table_ref: str, rows: list[dict], dry
 # ---------------------------------------------------------------------------
 
 def migrate(batch_size: int = 500, dry_run: bool = False) -> None:
+    """
+    Migrates historical weather observations from PostgreSQL into Google BigQuery.
+
+    Data Validation & Edge Cases:
+    - Pagination is implemented using a keyset (cursor-based) approach (`last_id`) rather than
+      OFFSET/LIMIT, optimizing performance for large time-series datasets and preventing skipped
+      records if new data is inserted concurrently.
+    - Gracefully handles empty source sets by terminating early if `total_rows == 0`.
+
+    Cloud Destinations (PostgreSQL -> BigQuery):
+    - BigQuery inserts are inherently eventually consistent and append-only. Because this streaming
+      API does not use MERGE natively, re-running this script may create duplicate rows in BigQuery.
+      (Deduplication must be handled downstream in BQ views or scheduled queries).
+    - Maintains an isolation layer between the DB read and BQ write, capturing BigQuery streaming
+      errors without automatically failing the script, allowing partial batch ingestion to succeed.
+    """
     project_id = os.environ.get("BIGQUERY_PROJECT_ID")
     if not project_id:
         raise EnvironmentError(

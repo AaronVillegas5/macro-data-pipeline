@@ -11,6 +11,20 @@ def q(v):
     return str(v)
 
 def load_economic_to_snowflake(conn, rows):
+    """
+    Loads economic observation data into Snowflake using a MERGE INTO upsert pattern.
+
+    Data Validation & Edge Cases:
+    - Verifies `rows` is not empty prior to execution to prevent empty queries.
+    - Safely formats data using the `q()` helper which properly escapes strings and handles NULL values, 
+      preventing SQL injection or parsing errors on null data points.
+    - Time-Series Gaps: Batch processing inherently supports sparse data sets since missing dates are simply omitted.
+
+    Cloud Destination (Snowflake):
+    - Uses `MERGE INTO economic_observations` matching on the composite key (series_id, observed_at).
+    - Idempotency is guaranteed by only performing an INSERT `WHEN NOT MATCHED`. This prevents duplicates 
+      if the pipeline is rerun over existing historical periods.
+    """
     if not rows:
         return
 
@@ -107,6 +121,18 @@ def load_weather_to_snowflake(conn, rows):
         cursor.close()
 
 def merge_weather(conn):
+    """
+    Executes the MERGE INTO logic to upsert staged weather data into the final Snowflake table.
+
+    Data Validation & Edge Cases:
+    - Expected nulls in mutable columns (e.g., precipitation, temperature) are handled natively 
+      during the staging phase `load_weather_to_snowflake()`.
+
+    Cloud Destination (Snowflake):
+    - Assumes data has been pre-loaded into `weather_observations_stage`.
+    - Conflicts on (latitude, longitude, observed_at) are skipped (`WHEN NOT MATCHED THEN INSERT`).
+    - This approach provides idempotent inserts, meaning overlapping time-series data won't corrupt the warehouse.
+    """
     cursor = conn.cursor()
 
     try:
