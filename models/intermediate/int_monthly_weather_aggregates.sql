@@ -12,8 +12,9 @@ WITH weather_data AS (
 SELECT
     location_id,
     year_month,
-    ROUND(AVG(temperature_c),2) AS avg_monthly_temp,
-    ROUND(SUM(precipitation_mm),2) AS total_monthly_precipitation,
+    ROUND(AVG(temperature_c), 2) AS avg_monthly_temp_c,
+    ROUND(SUM(precipitation_mm), 2) AS total_monthly_precipitation_mm,
+
     SUM(CASE WHEN temperature_c < 0 THEN 1 ELSE 0 END)AS subzero_days
 FROM weather_data
 GROUP BY 

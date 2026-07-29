@@ -61,7 +61,9 @@ def _observation_to_bq_row(obs: WeatherObservation) -> dict:
         "wind_speed": obs.wind_speed,
         "pressure": obs.pressure,
         "humidity": obs.humidity,
+        "precipitation": obs.precipitation,
         "observed_at": obs.observed_at.isoformat() if obs.observed_at else None,
+
         "created_at": obs.created_at.isoformat() if obs.created_at else None,
     }
 
