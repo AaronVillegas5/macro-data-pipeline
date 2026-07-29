@@ -1,7 +1,3 @@
--- 2. The Agricultural Freeze Streak (Gaps and Islands)
-
--- The Concept: A single freezing day damages crops, but a streak of 5+ consecutive freezing days devastates agricultural yields and impacts futures markets.
--- Your Task: Identify the longest consecutive streaks of days where the temperature stayed below 0°C for each city.
 
 WITH DailyTemperatures AS (
     SELECT 
