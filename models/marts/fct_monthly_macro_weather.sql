@@ -9,9 +9,10 @@ macro_indicators AS (
 SELECT
     w.location_id,
     w.year_month,
-    w.avg_monthly_temp,
-    w.total_monthly_precipitation,
+    w.avg_monthly_temp_c,
+    w.total_monthly_precipitation_mm,
     w.subzero_days,
+
     m.cpi,
     m.unemployment_rate,
     m.gdp

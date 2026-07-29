@@ -37,13 +37,16 @@ schema = [
 
 table = bigquery.Table(table_id, schema=schema)
 table.time_partitioning = bigquery.TimePartitioning(
-    type_=bigquery.TimePartitioningType.DAY,
+    type_=bigquery.TimePartitioningType.MONTH,
     field="observed_at"
 )
 table.clustering_fields = ["series_id"]
 
 try:
-    table = client.create_table(table, exists_ok=True)
-    print(f"Table {table_id} created or already exists.")
+    # Delete table if it exists with wrong partitioning
+    client.delete_table(table_id, not_found_ok=True)
+    table = client.create_table(table)
+    print(f"Table {table_id} recreated with MONTH partitioning.")
 except Exception as e:
     print(f"Error creating table: {e}")
+
