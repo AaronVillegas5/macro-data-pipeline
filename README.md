@@ -140,12 +140,19 @@ The goal is to build a foundation for real-world economic analysis and predictiv
 The `sql/` directory is organised by target database:
 
 **`sql/postgres/`** — PostgreSQL queries
-- Historical temperature trends (`avg_temp_before_and_after_2000.sql`)
+- Historical temperature trends (`avg_temp_before_and_after_2000.sql`, `avg_temp_before_2000.sql`, `avg_temp_after_2000.sql`)
 - Extreme weather event tracking (`hottest_years.sql`, `rainiest_years.sql`)
-- Monthly and annual climate aggregations
+- Monthly and annual climate aggregations (`avg_temp_by_month.sql`, `avg_temp_by_year.sql`, `rain_by_year.sql`, `avg_rain_in_year.sql`)
+- Database utility queries (`count_rows.sql`)
 
 **`sql/bigquery/`** — BigQuery queries
 - 30-day rolling average temperature per location (`avg_temp_rolling_30_days.sql`)
+- Year-over-year temperature percentage change (`year_over_year_percentage.sql`)
+- Average yearly difference (`avg_yearly_difference.sql`)
+- Average yearly temperature (`avg_yearly_temp`)
+- Longest subzero temperature streak (`longest_subzero_streak.sql`)
+- Data deduplication (`deduplicate_data.sql`)
+- Table creation and setup (`bigquery_create_weather_observations.sql`, `create_weather_table_v2.sql`)
 
 ---
 

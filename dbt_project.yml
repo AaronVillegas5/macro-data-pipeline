@@ -1,0 +1,27 @@
+name: 'macro_data_pipeline'
+version: '1.0.0'
+config-version: 2
+
+# Must match the profile name in profiles.yml
+profile: 'macro_data_pipeline'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Default materializations by folder layer
+models:
+  macro_data_pipeline:
+    staging:
+      +materialized: view
+    intermediate:
+      +materialized: view
+    marts:
+      +materialized: table
