@@ -6,6 +6,7 @@ sources:
     tables:
       - name: observations_v2
       - name: locations
+      
   - name: raw_economic
     database: macro-data-pipeline-498302
     schema: economic_data
