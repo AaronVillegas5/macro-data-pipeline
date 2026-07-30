@@ -1,0 +1,23 @@
+version: 2
+
+models:
+  - name: stg_locations
+    description: "Cleaned location dimension reference table."
+    columns:
+      - name: id
+        description: "Primary key for location."
+        tests:
+          - unique
+          - not_null
+      - name: name
+        description: "City name must not be null"
+        tests:
+          - not_null
+      - name: latitude
+        description: "Geographic latitude coordinate."
+        tests:
+          - not_null
+      - name: longitude
+        description: "Geographic longitude coordinate."
+        tests:
+          - not_null
