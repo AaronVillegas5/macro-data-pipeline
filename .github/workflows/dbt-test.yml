@@ -1,0 +1,28 @@
+name: dbt PR Testing
+on:
+  pull_request:
+    branches:
+      - main
+jobs:
+  dbt-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: |
+          pip install dbt-bigquery
+          
+      - name: Run dbt
+        # Note: You need to pass your GCP credentials securely using GitHub Secrets!
+        env:
+          GCP_KEY: ${{ secrets.GCP_CREDENTIALS }}
+        run: |
+          echo "$GCP_KEY" > gcp-key.json
+          dbt deps
+          dbt run --target dev
+          dbt test --target dev
