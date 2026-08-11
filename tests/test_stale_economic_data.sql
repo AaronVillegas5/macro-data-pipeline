@@ -12,4 +12,4 @@ SELECT
     most_recent_observation
 FROM latest_observations
 -- Using standard standard SQL (adjust INTERVAL syntax based on your warehouse: Postgres/Snowflake/DuckDB etc.)
-WHERE most_recent_observation < CURRENT_DATE - INTERVAL '120 days'
+WHERE most_recent_observation < TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 120 DAY)

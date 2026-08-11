@@ -1,0 +1,1 @@
+{{ longest_daily_streak('precipitation_mm', '=', '0') }}
