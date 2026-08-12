@@ -42,5 +42,5 @@ jobs:
           
           # 3. Run the dbt commands
           dbt deps
-          dbt run
+          dbt run --full-refresh
           dbt test
