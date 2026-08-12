@@ -1,0 +1,46 @@
+name: dbt PR Testing
+on:
+  pull_request:
+    branches:
+      - main
+jobs:
+  dbt-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: |
+          pip install dbt-bigquery
+          
+      - name: Run dbt
+        # Note: You need to pass your GCP credentials securely using GitHub Secrets!
+        env:
+          GCP_KEY: ${{ secrets.GCP_CREDENTIALS }}
+        run: |
+          # 1. Save the GCP key to a file
+          echo "$GCP_KEY" > gcp-key.json
+          
+          # 2. Create the .dbt directory and profiles.yml file
+          mkdir -p ~/.dbt
+          cat << 'EOF' > ~/.dbt/profiles.yml
+          macro_data_pipeline:
+            target: dev
+            outputs:
+              dev:
+                type: bigquery
+                method: service-account
+                project: macro-data-pipeline-498302
+                dataset: dbt_pr_ci
+                threads: 4
+                keyfile: gcp-key.json
+          EOF
+          
+          # 3. Run the dbt commands
+          dbt deps
+          dbt run --full-refresh
+          dbt test

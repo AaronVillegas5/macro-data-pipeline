@@ -19,6 +19,7 @@ The system integrates macroeconomic indicators, environmental data, and (in prog
 - 🧱 Modular service-based architecture for each data source
 - ⚙️ Backfill system for historical data ingestion
 - 🛠 **dbt Transformation Pipeline**: Modular Staging, Intermediate, and Mart models transforming 9M+ raw BigQuery observations into analytics-ready data marts
+- 🤖 **CI/CD Data Testing**: Automated GitHub Actions pipeline that dynamically generates BigQuery profiles and runs `dbt run` & `dbt test` on all Pull Requests to guarantee data quality.
 
 ---
 
@@ -122,9 +123,10 @@ Each data source is handled independently via modular service scripts. Weather a
 
 The dbt project organizes transformations into three distinct layers:
 
-1. **Staging (`models/staging/`)**: Materialized as incremental models/views. Cleans raw BigQuery tables (`observations_v2`) and standardizes types & columns (`stg_weather_observations`, `stg_economic_observations`).
+1. **Staging (`models/staging/`)**: Materialized as incremental models/views. Cleans raw BigQuery tables (`observations_v2`) and standardizes types & columns (`stg_weather_observations`, `stg_economic_observations`). Includes schema validation and custom bounds tests (e.g., `test_out_of_bounds.sql`).
 2. **Intermediate (`models/intermediate/`)**: Materialized as views. Handles time-series aggregations and pivoting:
    - `int_monthly_weather_aggregates`: Calculates monthly average temperatures (`avg_monthly_temp_c`), total rainfall (`total_monthly_precipitation_mm`), and subzero freeze days.
+   - `int_dry_spell`: Calculates the longest dry spell utilizing a reusable Jinja macro (`longest_streak.sql`) to solve gaps-and-islands problems dynamically.
    - `int_economic_indicators_pivoted`: Pivots long-format FRED series into wide columns (`cpi`, `unemployment_rate`, `gdp`).
 3. **Marts (`models/marts/`)**: Materialized as physical tables.
    - `fct_monthly_macro_weather`: Joins monthly climate metrics with macroeconomic indicators for downstream dashboards and forecasting models.
@@ -206,10 +208,12 @@ The `sql/` directory is organised by target database:
 ├── alembic/        # Database migration scripts
 ├── db/             # SQLAlchemy models and Snowflake connections
 ├── jobs/           # Automated scripts for fetching and backfilling data
+├── macros/         # Reusable Jinja SQL macros (e.g., longest_streak.sql)
 ├── models/         # dbt transformation models (staging, intermediate, marts)
 │   ├── staging/    # Cleansed raw BigQuery tables
 │   ├── intermediate/# Pivoted economic data & weather aggregations
 │   └── marts/       # Final analytical fact tables (fct_monthly_macro_weather)
+├── tests/          # Custom dbt data tests (e.g., bounding tests, freshness checks)
 ├── scripts/        # Utility setup and migration scripts
 │   ├── create_bq_economic_table.py
 │   ├── migrate_historical_economic.py
