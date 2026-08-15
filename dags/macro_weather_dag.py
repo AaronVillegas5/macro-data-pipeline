@@ -1,6 +1,9 @@
 from datetime import datetime, timedelta
+# pyrefly: ignore [missing-import]
 from airflow import DAG
+# pyrefly: ignore [missing-import]
 from airflow.operators.python import PythonOperator
+# pyrefly: ignore [missing-import]
 from airflow.operators.bash import BashOperator
 
 # Default arguments applied to all tasks
@@ -45,13 +48,13 @@ with DAG(
     # Trigger dbt run for BigQuery models
     dbt_run = BashOperator(
         task_id="dbt_run_transformations",
-        bash_command="cd /opt/airflow/project_root && dbt run --profiles-dir .",
+        bash_command="cd /opt/airflow/project_root/dbt && dbt run --profiles-dir .",
     )
 
     # Trigger dbt tests to validate data quality
     dbt_test = BashOperator(
         task_id="dbt_test_quality_checks",
-        bash_command="cd /opt/airflow/project_root && dbt test --profiles-dir .",
+        bash_command="cd /opt/airflow/project_root/dbt && dbt test --profiles-dir .",
     )
 
     # Set DAG Dependencies
