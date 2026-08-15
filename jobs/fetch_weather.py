@@ -1,53 +1,70 @@
 from services.weather_service import fetch_weather
-from services.location_service import get_or_create_location
 from db.connection import SessionLocal
+from db.models import Location
 from utilities.logger import logger
 from services.save_weather import save_weather
 from services.snowflake_loader import load_weather_to_snowflake
 from db.snowflake_connection import get_snowflake_connection
 
-def run(lat, lon):
-    logger.info(f"Fetching weather for lat={lat}, lon={lon}")
+def fetch_weather_for_location(db, conn, location: Location):
+    """Fetches and saves weather observations for a specific Location record."""
+    lat, lon = location.latitude, location.longitude
+    logger.info(f"Fetching weather for {location.name} (id={location.id}, lat={lat}, lon={lon})")
 
+    rows = fetch_weather(lat, lon)
+    if not rows:
+        logger.warning(f"No weather records returned for {location.name}")
+        return
+
+    for row in rows:
+        row["location_id"] = location.id
+        save_weather(row)
+
+    logger.info(f"Processed {len(rows)} weather records for {location.name}")
+
+    snowflake_rows = [
+        {
+            "latitude": lat,
+            "longitude": lon,
+            "observed_at": row["observed_at"],
+            "temperature": row["temperature_c"],
+            "precipitation": row.get("precipitation", 0.0)
+        }
+        for row in rows
+    ]
+
+    if conn:
+        try:
+            load_weather_to_snowflake(conn, snowflake_rows)
+        except Exception as e:
+            logger.warning(f"Snowflake loader failed for {location.name}: {e}")
+
+def run():
+    """Loops through all active locations in PostgreSQL and ingests their latest weather."""
     db = SessionLocal()
-    conn = get_snowflake_connection()
+    conn = None
     try:
-        rows = fetch_weather(lat, lon)
+        try:
+            conn = get_snowflake_connection()
+        except Exception as e:
+            logger.warning(f"Could not connect to Snowflake: {e}")
 
-        location = get_or_create_location(
-            db,
-            name="Rancho Santa Margarita",
-            country="US",
-            region="CA",
-            lat=lat,
-            lon=lon
-        )
+        locations = db.query(Location).all()
+        if not locations:
+            logger.warning("No locations found in PostgreSQL database.")
+            return
 
-        for row in rows:
-            row["location_id"] = location.id
-            save_weather(row)
+        logger.info(f"Starting weather ingestion for {len(locations)} locations.")
+        for location in locations:
+            try:
+                fetch_weather_for_location(db, conn, location)
+            except Exception as e:
+                logger.error(f"Failed to fetch weather for {location.name}: {e}")
 
-        logger.info(f"Processed {len(rows)} weather records")
-
-        snowflake_rows = [
-            {
-                "latitude": lat,
-                "longitude": lon,
-                "observed_at": row["observed_at"],
-                "temperature": row["temperature_c"],
-                "precipitation": row.get("precipitation", 0.0)
-            }
-            for row in rows
-        ]
-
-        load_weather_to_snowflake(conn, snowflake_rows)
-    
     except Exception as e:
-        logger.exception("Error occurred while processing weather")
-        logger.error(f"Failed: {e}")
-
+        logger.exception("Error occurred while querying locations for weather processing")
     finally:
         db.close()
 
 if __name__ == "__main__":
-    run(33.6405, -117.6026)
+    run()
