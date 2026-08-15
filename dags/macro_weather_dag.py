@@ -1,4 +1,12 @@
 from datetime import datetime, timedelta
+import sys
+import os
+
+# Ensure project root is on sys.path for Airflow workers
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 # pyrefly: ignore [missing-import]
 from airflow import DAG
 # pyrefly: ignore [missing-import]
@@ -21,17 +29,26 @@ def run_weather_ingestion(**kwargs):
     fetch_weather_run()
 
 def run_economic_ingestion(**kwargs):
-    from jobs.fetch_economic import run as fetch_economic_run, FRED_SERIES
-    for series_id, name in FRED_SERIES.items():
-        fetch_economic_run(series_id, name)
+    from jobs.fetch_economic import run as fetch_economic_run
+    # Fetches latest macroeconomic series from FRED API
+    fetch_economic_run()
+
+def run_daily_ai_briefing(**kwargs):
+    from utilities.logger import logger
+    try:
+        from services.ai_agent import generate_daily_executive_briefing
+        briefing = generate_daily_executive_briefing()
+        logger.info(f"AI Executive Briefing generated successfully:\n{briefing}")
+    except Exception as e:
+        logger.warning(f"AI Briefing skipped or encountered an error: {e}")
 
 with DAG(
     dag_id="macro_weather_daily_pipeline",
     default_args=default_args,
     description="Daily ingestion of FRED & Weather APIs followed by dbt BigQuery transformations",
     schedule_interval="0 6 * * *",  # Runs daily at 06:00 UTC
-    start_date=datetime(2025, 1, 1),
-    catchup=False,
+    start_date=datetime(2026, 8, 15),
+    catchup=True,
     tags=["macro", "weather", "dbt", "production"],
 ) as dag:
 
@@ -57,5 +74,10 @@ with DAG(
         bash_command="cd /opt/airflow/project_root/dbt && dbt test --profiles-dir .",
     )
 
+    generate_briefing = PythonOperator(
+        task_id="generate_ai_executive_briefing",
+        python_callable=run_daily_ai_briefing
+    )
+
     # Set DAG Dependencies
-    [ingest_weather, ingest_economic] >> dbt_run >> dbt_test
+    [ingest_weather, ingest_economic] >> dbt_run >> dbt_test >> generate_briefing
