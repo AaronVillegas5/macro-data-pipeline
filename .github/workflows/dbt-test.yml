@@ -41,6 +41,6 @@ jobs:
           EOF
           
           # 3. Run the dbt commands
-          dbt deps
-          dbt run --full-refresh
-          dbt test
+          dbt deps --project-dir dbt
+          dbt run --project-dir dbt --full-refresh
+          dbt test --project-dir dbt
