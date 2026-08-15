@@ -25,3 +25,4 @@ dbt_packages/
 # IDE & Tooling
 .vscode/
 .agents/
+dbt/.user.yml

@@ -3,10 +3,14 @@ from pydantic import BaseModel
 from datetime import date
 import logging
 
+from app.routers.insights import router as insights_router
+
 app = FastAPI(
     title="Pi Macro Data Pipeline API",
     description="API for triggering data pipeline jobs and checking status"
 )
+
+app.include_router(insights_router, prefix="/api/v1")
 
 logging.basicConfig(
     level=logging.INFO,
