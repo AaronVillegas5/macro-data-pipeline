@@ -1,0 +1,99 @@
+services:
+  db:
+    image: postgres:16
+    container_name: myapi-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - ./db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: myapi
+    restart: unless-stopped
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      GOOGLE_APPLICATION_CREDENTIALS: /app/gcp-key.json
+      BIGQUERY_PROJECT_ID: ${BIGQUERY_PROJECT_ID}
+    volumes:
+      - .:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+  airflow-db:
+    image: postgres:16
+    container_name: airflow-postgres
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow_password
+      POSTGRES_DB: airflow
+    volumes:
+      - airflow_db_data:/var/lib/postgresql/data
+    networks:
+      - default
+
+  airflow-webserver:
+    image: apache/airflow:2.9.3-python3.11
+    container_name: airflow-webserver
+    restart: unless-stopped
+    depends_on:
+      - airflow-db
+      - db
+    env_file:
+      - .env
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow_password@airflow-db:5432/airflow
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__WEBSERVER__SECRET_KEY=temporary_secret_key_12345
+      - PYTHONPATH=/opt/airflow/project_root
+      - _PIP_ADDITIONAL_REQUIREMENTS=google-cloud-bigquery snowflake-connector-python dbt-bigquery boto3 requests psycopg2-binary google-genai
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      - GOOGLE_APPLICATION_CREDENTIALS=/opt/airflow/project_root/gcp-key.json
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./:/opt/airflow/project_root
+    ports:
+      - "8080:8080"
+    command: webserver
+
+  airflow-scheduler:
+    image: apache/airflow:2.9.3-python3.11
+    container_name: airflow-scheduler
+    restart: unless-stopped
+    depends_on:
+      - airflow-webserver
+      - db
+    env_file:
+      - .env
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow_password@airflow-db:5432/airflow
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - PYTHONPATH=/opt/airflow/project_root
+      - _PIP_ADDITIONAL_REQUIREMENTS=google-cloud-bigquery snowflake-connector-python dbt-bigquery boto3 requests psycopg2-binary google-genai
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      - GOOGLE_APPLICATION_CREDENTIALS=/opt/airflow/project_root/gcp-key.json
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./:/opt/airflow/project_root
+    command: scheduler
+
+volumes:
+  db_data:
+  airflow_db_data:
