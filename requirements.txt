@@ -26,3 +26,6 @@ dbt-bigquery>=1.8.0
 
 # Orchestration (for local scheduler/DAG parsing)
 apache-airflow>=2.9.0
+
+# AI & LLM Agent
+google-genai>=1.0.0

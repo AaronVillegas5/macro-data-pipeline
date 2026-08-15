@@ -1,0 +1,10 @@
+macro_data_pipeline:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: service-account
+      project: "{{ env_var('BIGQUERY_PROJECT_ID', 'macro-data-pipeline-498302') }}"
+      dataset: "{{ env_var('DBT_DATASET', 'weather_data') }}"
+      threads: 4
+      keyfile: "{{ env_var('GOOGLE_APPLICATION_CREDENTIALS', '/opt/airflow/project_root/gcp-key.json') }}"
