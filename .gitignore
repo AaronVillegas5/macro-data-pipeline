@@ -26,3 +26,4 @@ dbt_packages/
 .vscode/
 .agents/
 dbt/.user.yml
+GEMINI.md
