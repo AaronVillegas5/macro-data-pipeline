@@ -1,1 +1,0 @@
-{{ longest_streak('precipitation_mm', '=', '0') }}
