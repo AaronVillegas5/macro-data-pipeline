@@ -1,6 +1,13 @@
 __pycache__/
 *.pyc
 .env
-.git
+.git/
+.venv/
 venv/
 db_data/
+logs/
+*.log
+dbt/target/
+target/
+.vscode/
+.agents/
