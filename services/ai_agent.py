@@ -37,19 +37,45 @@ def ask_macro_agent(user_prompt: str) -> str:
         )
     )
 
-    candidate_models = [
-        os.getenv("GEMINI_MODEL"),
-        "gemini-3.1-flash-lite",
-        "gemini-3.5-flash-lite",
-        "gemini-3.7-flash",
-        "gemini-3.6-flash",
-        "gemini-3.5-flash",
-        "gemini-3-flash",
-        "gemini-2.5-flash-lite"
-    ]
-    candidate_models = [m for m in candidate_models if m]
+    candidate_models = []
+    if os.getenv("GEMINI_MODEL"):
+        candidate_models.append(os.getenv("GEMINI_MODEL"))
+        
+    try:
+        # Dynamically discover available models
+        for m in client.models.list():
+            if "gemini" in m.name.lower():
+                # Some APIs return 'models/gemini...', we just want the 'gemini...' part
+                model_id = m.name.split("/")[-1]
+                candidate_models.append(model_id)
+    except Exception:
+        pass
 
-    last_error = None
+    # Ensure we always have some models to try if discovery fails or returns empty
+    if not candidate_models:
+        candidate_models.extend([
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash",
+        ])
+
+    # Deduplicate preserving order
+    seen = set()
+    candidate_models = [m for m in candidate_models if not (m in seen or seen.add(m))]
+    candidate_models = [m for m in candidate_models if m] # Ensure no empty strings
+
+    if not candidate_models:
+        candidate_models.extend([
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash",
+        ])
+
+    print(f"DEBUG CANDIDATES: {candidate_models}")
+
+    errors = {}
     for model_name in candidate_models:
         try:
             response = client.models.generate_content(
@@ -59,18 +85,10 @@ def ask_macro_agent(user_prompt: str) -> str:
             )
             return response.text
         except Exception as e:
-            last_error = e
-            error_msg = str(e).lower()
-            transient_or_missing = [
-                "404", "503", "429",
-                "not found", "no longer available",
-                "unavailable", "high demand", "resource_exhausted"
-            ]
-            if any(term in error_msg for term in transient_or_missing):
-                continue
-            raise e
+            errors[model_name] = str(e)
+            continue
 
-    raise RuntimeError(f"All candidate Gemini models failed: {last_error}")
+    raise RuntimeError(f"Models attempted and their results: {errors}")
 
 def generate_daily_executive_briefing() -> str:
     """Generates an executive briefing summarizing recent climate and macroeconomic trends."""
