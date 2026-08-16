@@ -1,4 +1,3 @@
-from db.connection import SessionLocal
 from db.models import Location
 
 
@@ -8,16 +7,12 @@ def get_or_create_location(db, name, country, region, lat, lon):
         .filter(Location.latitude == lat, Location.longitude == lon)
         .first()
     )
-    #If already exists
+    # If already exists
     if location:
         return location
 
     location = Location(
-        name=name,
-        country=country,
-        region=region,
-        latitude=lat,
-        longitude=lon
+        name=name, country=country, region=region, latitude=lat, longitude=lon
     )
 
     db.add(location)

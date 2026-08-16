@@ -1,7 +1,17 @@
 # SQLalchemy models
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, UniqueConstraint, Index
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
+
 from db.connection import Base
 
 
@@ -11,45 +21,29 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
 
+
 class WeatherObservation(Base):
     __tablename__ = "weather_observations"
     __table_args__ = (
-        UniqueConstraint(
-            "location_id",
-            "observed_at",
-            name="unique_location_time"
-        ),
-
-        Index(
-            "idx_weather_time",
-            "observed_at"
-        ),
-
+        UniqueConstraint("location_id", "observed_at", name="unique_location_time"),
+        Index("idx_weather_time", "observed_at"),
     )
 
     id = Column(Integer, primary_key=True)
 
-    location_id = Column(
-        Integer,
-        ForeignKey("locations.id"),
-        nullable=False
-    )
+    location_id = Column(Integer, ForeignKey("locations.id"), nullable=False)
     temperature_c = Column(Float)
     wind_speed = Column(Float)
     pressure = Column(Float)
     humidity = Column(Float)
     precipitation = Column(Float)
     observed_at = Column(DateTime)
-    created_at = Column(
-        DateTime,
-        server_default=func.now()
-    )
+    created_at = Column(DateTime, server_default=func.now())
+
 
 class Location(Base):
     __tablename__ = "locations"
-    __table_args__ = (
-        UniqueConstraint("latitude", "longitude"),
-    )
+    __table_args__ = (UniqueConstraint("latitude", "longitude"),)
 
     id = Column(Integer, primary_key=True, nullable=False)
 
@@ -63,15 +57,12 @@ class Location(Base):
 
     longitude = Column(Float, nullable=False)
 
+
 class EconomicObservation(Base):
     __tablename__ = "economic_observations"
 
     __table_args__ = (
-        UniqueConstraint(
-            "series_id",
-            "observed_at",
-            name="unique_series_time"
-        ),
+        UniqueConstraint("series_id", "observed_at", name="unique_series_time"),
     )
 
     id = Column(Integer, primary_key=True, nullable=False)
@@ -84,20 +75,14 @@ class EconomicObservation(Base):
 
     observed_at = Column(DateTime, nullable=False)
 
-    created_at = Column(
-        DateTime,
-        server_default=func.now()
-    )
+    created_at = Column(DateTime, server_default=func.now())
+
 
 class RetailObservation(Base):
     __tablename__ = "retail_observations"
 
     __table_args__ = (
-        UniqueConstraint(
-            "naics_code",
-            "observed_at",
-            name="unique_retail_time"
-        ),
+        UniqueConstraint("naics_code", "observed_at", name="unique_retail_time"),
     )
 
     id = Column(Integer, primary_key=True, nullable=False)
@@ -107,10 +92,9 @@ class RetailObservation(Base):
     value = Column(Float, nullable=False)
     observed_at = Column(DateTime, nullable=False)
 
-    created_at = Column(
-        DateTime,
-        server_default=func.now()
-    )
+    created_at = Column(DateTime, server_default=func.now())
+
+
 class RawApiResponse(Base):
     __tablename__ = "raw_api_responses"
 

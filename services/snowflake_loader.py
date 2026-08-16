@@ -1,6 +1,8 @@
-from db.snowflake_connection import get_snowflake_connection
-from utilities.logger import logger
 from datetime import datetime
+
+from utilities.logger import logger
+
+
 def q(v):
     if v is None:
         return "NULL"
@@ -10,19 +12,20 @@ def q(v):
         return "'" + v.strftime("%Y-%m-%d %H:%M:%S") + "'"
     return str(v)
 
+
 def load_economic_to_snowflake(conn, rows):
     """
     Loads economic observation data into Snowflake using a MERGE INTO upsert pattern.
 
     Data Validation & Edge Cases:
     - Verifies `rows` is not empty prior to execution to prevent empty queries.
-    - Safely formats data using the `q()` helper which properly escapes strings and handles NULL values, 
+    - Safely formats data using the `q()` helper which properly escapes strings and handles NULL values,
       preventing SQL injection or parsing errors on null data points.
     - Time-Series Gaps: Batch processing inherently supports sparse data sets since missing dates are simply omitted.
 
     Cloud Destination (Snowflake):
     - Uses `MERGE INTO economic_observations` matching on the composite key (series_id, observed_at).
-    - Idempotency is guaranteed by only performing an INSERT `WHEN NOT MATCHED`. This prevents duplicates 
+    - Idempotency is guaranteed by only performing an INSERT `WHEN NOT MATCHED`. This prevents duplicates
       if the pipeline is rerun over existing historical periods.
     """
     if not rows:
@@ -34,12 +37,14 @@ def load_economic_to_snowflake(conn, rows):
         batch_size = 500
 
         for i in range(0, len(rows), batch_size):
-            batch = rows[i:i + batch_size]
+            batch = rows[i : i + batch_size]
 
-            values = ", ".join([
-                f"({q(r['series_id'])}, {q(r['series_name'])}, {q(r['observed_at'])}, {q(r['value'])})"
-                for r in batch
-            ])
+            values = ", ".join(
+                [
+                    f"({q(r['series_id'])}, {q(r['series_name'])}, {q(r['observed_at'])}, {q(r['value'])})"
+                    for r in batch
+                ]
+            )
 
             sql = f"""
             MERGE INTO economic_observations AS target
@@ -68,7 +73,6 @@ def load_economic_to_snowflake(conn, rows):
         cursor.close()
 
 
-
 def load_weather_to_snowflake(conn, rows):
     if not rows:
         return
@@ -80,15 +84,14 @@ def load_weather_to_snowflake(conn, rows):
         batch_size = 50000  # bigger batches = fewer round trips
 
         for i in range(0, len(rows), batch_size):
-            batch = rows[i:i + batch_size]
+            batch = rows[i : i + batch_size]
 
-            logger.info(f"Staging batch {i}-{i+len(batch)} ({len(batch)} rows)")
+            logger.info(f"Staging batch {i}-{i + len(batch)} ({len(batch)} rows)")
             print("INSERTING INTO SNOWFLAKE:", len(batch))
             print(batch[0])
 
-            
-
-            cursor.executemany("""
+            cursor.executemany(
+                """
             INSERT INTO weather_observations_stage (
                 latitude,
                 longitude,
@@ -99,17 +102,18 @@ def load_weather_to_snowflake(conn, rows):
             )
             VALUES (%s, %s, %s, %s, %s, %s)
             """,
-            [
-                (
-                    r["latitude"],
-                    r["longitude"],
-                    r["observed_at"],
-                    r.get("temperature"),
-                    r.get("precipitation", 0.0),
-                    created_at
-                )
-                for r in batch
-            ])
+                [
+                    (
+                        r["latitude"],
+                        r["longitude"],
+                        r["observed_at"],
+                        r.get("temperature"),
+                        r.get("precipitation", 0.0),
+                        created_at,
+                    )
+                    for r in batch
+                ],
+            )
         conn.commit()
 
     except Exception as e:
@@ -120,12 +124,13 @@ def load_weather_to_snowflake(conn, rows):
     finally:
         cursor.close()
 
+
 def merge_weather(conn):
     """
     Executes the MERGE INTO logic to upsert staged weather data into the final Snowflake table.
 
     Data Validation & Edge Cases:
-    - Expected nulls in mutable columns (e.g., precipitation, temperature) are handled natively 
+    - Expected nulls in mutable columns (e.g., precipitation, temperature) are handled natively
       during the staging phase `load_weather_to_snowflake()`.
 
     Cloud Destination (Snowflake):
@@ -168,6 +173,8 @@ def merge_weather(conn):
 
     finally:
         cursor.close()
+
+
 def clear_stage(conn):
     cursor = conn.cursor()
     try:
@@ -175,6 +182,7 @@ def clear_stage(conn):
         conn.commit()
     finally:
         cursor.close()
+
 
 def load_weather_pipeline(conn, rows):
     load_weather_to_snowflake(conn, rows)

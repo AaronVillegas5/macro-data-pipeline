@@ -1,15 +1,18 @@
+import csv
 import os
 import sys
-import csv
 
 # Add project root to sys.path
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from db.connection import engine, SessionLocal, Base
-from db.models import Location, WeatherObservation, EconomicObservation, RawApiResponse, User
+from db.connection import Base, SessionLocal, engine
+from db.models import (
+    Location,
+)
 from utilities.logger import logger
+
 
 def init_database():
     logger.info("Creating database tables if they do not exist...")
@@ -21,7 +24,9 @@ def init_database():
     try:
         count = db.query(Location).count()
         if count == 0:
-            csv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "locations.csv"))
+            csv_path = os.path.abspath(
+                os.path.join(os.path.dirname(__file__), "..", "locations.csv")
+            )
             if os.path.exists(csv_path):
                 logger.info(f"Seeding locations from {csv_path}...")
                 with open(csv_path, mode="r", encoding="utf-8") as f:
@@ -33,7 +38,7 @@ def init_database():
                             country=row["country"],
                             region=row["region"],
                             latitude=float(row["latitude"]),
-                            longitude=float(row["longitude"])
+                            longitude=float(row["longitude"]),
                         )
                         db.merge(loc)
                 db.commit()
@@ -47,6 +52,7 @@ def init_database():
         logger.error(f"Error seeding locations: {e}")
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     init_database()

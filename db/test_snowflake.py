@@ -1,5 +1,6 @@
 from db.snowflake_connection import get_snowflake_connection
 
+
 def test_connection():
     try:
         conn = get_snowflake_connection()
@@ -11,6 +12,7 @@ def test_connection():
         conn.close()
     except Exception as e:
         print(f"Connection failed: {e}")
+
 
 if __name__ == "__main__":
     test_connection()

@@ -1,11 +1,15 @@
-import requests, os
+import os
 from datetime import date
-from utilities.logger import logger
+
+import requests
+from dotenv import load_dotenv
+
 from db.connection import SessionLocal
 from services.s3_client import save_raw_response
-from dotenv import load_dotenv
+from utilities.logger import logger
+
 load_dotenv()
-API_KEY = os.getenv('FRED_API_KEY')
+API_KEY = os.getenv("FRED_API_KEY")
 
 
 def get_series(series_id):
@@ -16,16 +20,12 @@ def get_series(series_id):
     logger.info(f"Calling FRED API for {series_id}")
     url = "https://api.stlouisfed.org/fred/series/observations"
 
-    params = {
-        "series_id": series_id,
-        "api_key": API_KEY,
-        "file_type": "json"
-    }
+    params = {"series_id": series_id, "api_key": API_KEY, "file_type": "json"}
 
     response = requests.get(url, params=params, timeout=10)
     response.raise_for_status()
     data = response.json()
-    
+
     db = SessionLocal()
     try:
         save_raw_response("fred", series_id, data, db, start, end)

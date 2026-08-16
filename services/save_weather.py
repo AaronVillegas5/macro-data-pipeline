@@ -1,11 +1,12 @@
-import os
 import logging
+import os
+
+# pyrefly: ignore [missing-import]
+from google.cloud import bigquery
+from sqlalchemy.dialects.postgresql import insert
 
 from db.connection import SessionLocal
 from db.models import WeatherObservation
-from sqlalchemy.dialects.postgresql import insert
-# pyrefly: ignore [missing-import]
-from google.cloud import bigquery
 
 logger = logging.getLogger(__name__)
 
@@ -18,14 +19,15 @@ _BQ_TABLE = "observations_v2"
 # Sink 1: PostgreSQL
 # ---------------------------------------------------------------------------
 
+
 def save_weather_to_postgres(data: dict) -> None:
     """
     Upserts a single weather observation into PostgreSQL using ON CONFLICT DO UPDATE.
 
     Data Validation & Edge Cases:
-    - Null values and missing timeseries data in mutable fields (e.g., pressure, humidity) will safely 
+    - Null values and missing timeseries data in mutable fields (e.g., pressure, humidity) will safely
       overwrite existing records if an update occurs.
-    - Time-Series Gaps: Resolves historical gaps by allowing missing observations to be backfilled safely 
+    - Time-Series Gaps: Resolves historical gaps by allowing missing observations to be backfilled safely
       without duplicating existing data points.
 
     Cloud Destination (PostgreSQL):
@@ -58,7 +60,9 @@ def save_weather_to_postgres(data: dict) -> None:
         db.execute(stmt)
         db.commit()
         logger.debug(
-            "PostgreSQL: upserted observation for location_id=%s", data.get("location_id"))
+            "PostgreSQL: upserted observation for location_id=%s",
+            data.get("location_id"),
+        )
 
     except Exception as e:
         db.rollback()
@@ -73,6 +77,7 @@ def save_weather_to_postgres(data: dict) -> None:
 # Sink 2: BigQuery
 # ---------------------------------------------------------------------------
 
+
 def save_weather_to_bigquery(data: dict) -> None:
     """Stream a single weather observation into BigQuery.
 
@@ -84,9 +89,7 @@ def save_weather_to_bigquery(data: dict) -> None:
     """
     project_id = os.environ.get("BIGQUERY_PROJECT_ID")
     if not project_id:
-        raise EnvironmentError(
-            "BIGQUERY_PROJECT_ID environment variable is not set."
-        )
+        raise OSError("BIGQUERY_PROJECT_ID environment variable is not set.")
 
     client = bigquery.Client(project=project_id)
     table_ref = f"{project_id}.{_BQ_DATASET}.{_BQ_TABLE}"
@@ -98,7 +101,9 @@ def save_weather_to_bigquery(data: dict) -> None:
         "location_id": data["location_id"],
         "temperature_c": data["temperature_c"],
         "wind_speed": data["wind_speed"],
-        "observed_at": observed_at.isoformat() if hasattr(observed_at, "isoformat") else str(observed_at),
+        "observed_at": observed_at.isoformat()
+        if hasattr(observed_at, "isoformat")
+        else str(observed_at),
         "pressure": data["pressure"],
         "humidity": data["humidity"],
     }
@@ -108,13 +113,15 @@ def save_weather_to_bigquery(data: dict) -> None:
     if errors:
         raise RuntimeError(f"BigQuery streaming insert errors: {errors}")
 
-    logger.debug("BigQuery: streamed observation for location_id=%s",
-                 data.get("location_id"))
+    logger.debug(
+        "BigQuery: streamed observation for location_id=%s", data.get("location_id")
+    )
 
 
 # ---------------------------------------------------------------------------
 # Orchestrator — dual-sink with independent error isolation
 # ---------------------------------------------------------------------------
+
 
 def save_weather(data: dict) -> None:
     """Write a weather observation to both PostgreSQL and BigQuery.
@@ -128,8 +135,7 @@ def save_weather(data: dict) -> None:
     except Exception as e:
         # Error already logged inside save_weather_to_postgres; swallow here
         # so BigQuery write still proceeds.
-        logger.warning(
-            "PostgreSQL sink failed, continuing to BigQuery. Error: %s", e)
+        logger.warning("PostgreSQL sink failed, continuing to BigQuery. Error: %s", e)
 
     try:
         save_weather_to_bigquery(data)

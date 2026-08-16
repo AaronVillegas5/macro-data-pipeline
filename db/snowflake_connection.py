@@ -1,10 +1,12 @@
-import snowflake.connector
 import os
+
+import snowflake.connector
 from dotenv import load_dotenv
+
 load_dotenv()
-snowflake_user = os.getenv('SNOWFLAKE_USER')
-snowflake_password = os.getenv('SNOWFLAKE_PASSWORD')
-snowflake_account = os.getenv('SNOWFLAKE_ACCOUNT')
+snowflake_user = os.getenv("SNOWFLAKE_USER")
+snowflake_password = os.getenv("SNOWFLAKE_PASSWORD")
+snowflake_account = os.getenv("SNOWFLAKE_ACCOUNT")
 
 
 def get_snowflake_connection():
@@ -14,5 +16,5 @@ def get_snowflake_connection():
         account=snowflake_account,
         warehouse="COMPUTE_WH",
         database="MACRO_PIPELINE",
-        schema="PUBLIC"
+        schema="PUBLIC",
     )

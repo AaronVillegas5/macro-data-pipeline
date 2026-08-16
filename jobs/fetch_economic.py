@@ -1,37 +1,35 @@
-from services.economic_service import fetch_series
-from db.models import EconomicObservation
-from db.connection import SessionLocal
-from utilities.logger import logger
 from sqlalchemy.dialects.postgresql import insert
-from services.snowflake_loader import load_economic_to_snowflake
+
+from db.connection import SessionLocal
+from db.models import EconomicObservation
 from db.snowflake_connection import get_snowflake_connection
+from services.economic_service import fetch_series
+from services.snowflake_loader import load_economic_to_snowflake
+from utilities.logger import logger
 
 FRED_SERIES = {
     # Inflation
     "CPIAUCSL": "Inflation (CPI)",
     "CPILFESL": "Core CPI",
     "PCEPI": "PCE Inflation",
-
     # Labor
     "UNRATE": "Unemployment Rate",
     "PAYEMS": "Nonfarm Payrolls",
     "ICSA": "Initial Claims",
-
     # Rates
     "FEDFUNDS": "Federal Funds Rate",
     "DGS10": "10Y Treasury",
     "T10Y2Y": "Yield Curve Spread",
-
     # Activity
     "INDPRO": "Industrial Production",
     "HOUST": "Housing Starts",
-
     # Demand
     "PCE": "Personal Consumption",
     "CSUSHPISA": "Home Price Index",
     "DCOILWTICO": "Crude Oil Price",
     "JTSJOL": "Job Openings",
 }
+
 
 def fetch_and_save_series(db, conn, series_id, name):
     logger.info(f"Fetching economic data for series_id={series_id} ({name})")
@@ -49,10 +47,7 @@ def fetch_and_save_series(db, conn, series_id, name):
     # UPSERT into PostgreSQL
     stmt = stmt.on_conflict_do_update(
         index_elements=["series_id", "observed_at"],
-        set_={
-            "series_name": name,
-            "value": stmt.excluded.value
-        }
+        set_={"series_name": name, "value": stmt.excluded.value},
     )
 
     db.execute(stmt)
@@ -65,6 +60,7 @@ def fetch_and_save_series(db, conn, series_id, name):
             load_economic_to_snowflake(conn, rows)
         except Exception as e:
             logger.warning(f"Snowflake economic load failed for {series_id}: {e}")
+
 
 def run(series_id=None, name=None):
     db = SessionLocal()
@@ -88,6 +84,7 @@ def run(series_id=None, name=None):
         logger.exception(f"Error during economic data processing: {e}")
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     run()
