@@ -12,3 +12,9 @@ sources:
     schema: economic_data
     tables:
       - name: observations_v2
+
+  - name: retail_data
+    database: macro-data-pipeline-498302
+    schema: retail_data
+    tables:
+      - name: observations

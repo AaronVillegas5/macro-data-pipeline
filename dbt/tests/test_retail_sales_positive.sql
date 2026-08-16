@@ -9,3 +9,7 @@
 --    (dbt tests fail if the query returns ANY rows).
 --
 -- WRITE YOUR SQL BELOW:
+SELECT
+    sales_millions
+FROM {{ ref('stg_retail_observations') }}
+WHERE sales_millions < 0
