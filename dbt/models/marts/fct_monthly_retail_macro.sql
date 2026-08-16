@@ -17,3 +17,16 @@
 -- - ecommerce_sales_millions
 --
 -- WRITE YOUR SQL BELOW:
+SELECT
+    w.*,
+    r.total_retail_sales_millions,
+    r.total_retail_sales_yoy_growth_pct,
+    r.grocery_sales_millions,
+    r.ecommerce_sales_millions,
+    r.auto_sales_millions,
+    r.clothing_sales_millions
+FROM {{ ref('fct_monthly_macro_weather') }} w
+LEFT JOIN --keep past weather data pre-1992 intact
+    {{ ref('int_retail_pivoted') }} r
+ON 
+    w.year_month = FORMAT('%d-%02d', r.observed_year, r.observed_month)
