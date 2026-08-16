@@ -1,10 +1,10 @@
 # Macroeconomic & Climate Analytics Platform
 
-An end-to-end data analytics project designed to extract actionable insights from macroeconomic indicators and climate data. 
+An end-to-end data analytics project designed to extract actionable insights from macroeconomic indicators, consumer retail behavior, and climate data. 
 
-This platform automatically ingests, models, and analyzes time-series data to explore the intersection of environmental factors and economic performance. By transforming raw API feeds into structured BigQuery data marts using `dbt`, the project enables advanced SQL analysis, business intelligence workflows, and natural language querying via a built-in AI Analyst Agent.
+This platform automatically ingests, models, and analyzes time-series data to explore the intersection of environmental factors, economic performance, and consumer spending. By transforming raw API feeds into structured BigQuery data marts using `dbt`, the project enables advanced SQL analysis, business intelligence workflows, and natural language querying via a built-in AI Analyst Agent.
 
-While powered by data engineering infrastructure (Apache Airflow, dbt, PostgreSQL), the core focus is on dimensional data modeling, anomaly detection, and delivering immediate analytical insights.
+While powered by data engineering infrastructure (Apache Airflow, dbt, PostgreSQL), the core focus is on data modeling, anomaly detection, and delivering immediate analytical insights.
 
 ---
 
@@ -12,9 +12,9 @@ While powered by data engineering infrastructure (Apache Airflow, dbt, PostgreSQ
 
 - **AI-Powered Business Intelligence**: Integrates a Gemini-powered AI agent to interrogate BigQuery data marts and generate executive summaries using natural language.
 - **Dimensional Data Modeling**: Uses `dbt` to transform raw observations into clean, analytics-ready fact and dimension tables.
-- **Climate & Economic Correlation**: Evaluates relationships between inflation, employment rates, and extreme weather events (e.g., dry spells, extreme temperature anomalies).
+- **Climate, Economic & Consumer Correlation**: Evaluates relationships between inflation, employment rates, consumer retail spending, and extreme weather events (e.g., dry spells, extreme temperature anomalies).
 - **Advanced Time-Series Analysis**: Handles complex SQL aggregations including 30-day rolling averages, year-over-year percentage changes, and gaps-and-islands problems.
-- **Automated Data Pipelines**: Uses Apache Airflow to reliably orchestrate daily data ingestion from the FRED and Open-Meteo APIs into cloud data warehouses.
+- **Automated Data Pipelines**: Uses Apache Airflow to reliably orchestrate daily data ingestion from the FRED, Open-Meteo, and US Census APIs into cloud data warehouses.
 - **Cloud Analytics**: Natively built on Google BigQuery for highly performant, scalable querying.
 
 ---
@@ -38,13 +38,14 @@ The core value of this project lies in the analytical questions it answers. The 
 
 The dbt project organizes transformations into a strict, three-tier dimensional modeling structure:
 
-1. **Staging (`models/staging/`)**: Cleans raw BigQuery tables and standardizes schemas (`stg_weather_observations`, `stg_economic_observations`). Includes strict schema validation and custom bounds tests to ensure data quality.
+1. **Staging (`models/staging/`)**: Cleans raw BigQuery tables and standardizes schemas (`stg_weather_observations`, `stg_economic_observations`, `stg_retail_observations`). Includes strict schema validation and custom bounds tests to ensure data quality.
 2. **Intermediate (`models/intermediate/`)**: Handles heavy time-series aggregations and pivoting:
    - `int_monthly_weather_aggregates`: Calculates monthly average temperatures, total rainfall, and freeze days.
    - `int_dry_spell`: Solves gaps-and-islands problems dynamically.
-   - `int_economic_indicators_pivoted`: Pivots long-format FRED series into structured wide columns.
+   - `int_economic_indicators_pivoted` & `int_retail_pivoted`: Pivots long-format FRED and Census series into structured wide columns.
 3. **Marts (`models/marts/`)**: The final presentation layer.
-   - `fct_monthly_macro_weather`: Joins monthly climate metrics with macroeconomic indicators, designed specifically for downstream BI dashboards and forecasting models.
+   - `fct_monthly_macro_weather`: Joins monthly climate metrics with macroeconomic indicators.
+   - `fct_monthly_retail_macro`: Blends monthly retail sales data with economic indicators to analyze consumer behavior against inflation and employment trends.
 
 ---
 
@@ -61,21 +62,49 @@ The dbt project organizes transformations into a strict, three-tier dimensional 
 
 ## Architecture Pipeline
 
-```text
-API Sources (FRED, Open-Meteo) ──▶ Airflow Data Fetchers
-                                          │
-                                          ▼
-                                   Google BigQuery (Raw Data)
-                                          │
-                                          ▼
-                                   dbt Transformations
-                           (Staging ──▶ Intermediate ──▶ Marts)
-                                          │
-                                          ▼
-                                   BigQuery Data Marts
-                                          │
-                                          ▼
-                             FastAPI & Gemini AI Analyst Agent
+```mermaid
+graph TD
+    %% Styling
+    classDef source fill:#2d3748,stroke:#4a5568,stroke-width:2px,color:#fff;
+    classDef airflow fill:#b83280,stroke:#97266d,stroke-width:2px,color:#fff;
+    classDef bigquery fill:#2b6cb0,stroke:#2c5282,stroke-width:2px,color:#fff;
+    classDef dbt fill:#dd6b20,stroke:#c05621,stroke-width:2px,color:#fff;
+    classDef app fill:#38a169,stroke:#2f855a,stroke-width:2px,color:#fff;
+
+    %% Nodes and Subgraphs
+    subgraph External["External APIs"]
+        A[FRED API]:::source
+        B[Open-Meteo API]:::source
+        K[US Census Retail API]:::source
+    end
+
+    C[Apache Airflow Data Fetchers]:::airflow
+
+    subgraph GCP["Google Cloud Platform"]
+        D[(BigQuery<br/>Raw Data)]:::bigquery
+        
+        subgraph DBT["dbt Transformations"]
+            E[Staging]:::dbt --> F[Intermediate]:::dbt
+            F --> G[Marts]:::dbt
+        end
+        
+        H[(BigQuery<br/>Data Marts)]:::bigquery
+    end
+
+    subgraph Serving["Consumption Layer"]
+        I[FastAPI Backend]:::app
+        J[Gemini AI Analyst Agent]:::app
+    end
+
+    %% Connections
+    A -->|JSON/API| C
+    B -->|JSON/API| C
+    K -->|JSON/API| C
+    C -->|Load| D
+    D --> E
+    G -->|Write| H
+    H -->|Query| I
+    I <-->|Prompt & Context| J
 ```
 
 ---
@@ -119,7 +148,6 @@ dbt docs serve
 
 ## Future Work
 
-- Integrate U.S. Census retail sales data to analyze consumer behavior.
 - Build Jupyter-based analysis notebooks for exploratory data analysis.
 - Perform strict statistical correlation and lag analysis (e.g., CPI vs retail spending).
 - Add forecasting models (ARIMA / XGBoost).
