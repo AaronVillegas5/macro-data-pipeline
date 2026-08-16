@@ -4,7 +4,7 @@ from datetime import datetime
 from utilities.logger import logger
 
 # U.S. Census MARTS API Endpoint
-CENSUS_API_URL = "https://api.census.gov/data/timeseries/econo/marts"
+CENSUS_API_URL = "https://api.census.gov/data/timeseries/eits/marts"
 
 # Specific NAICS codes to track (as requested)
 TARGET_NAICS = {
@@ -29,9 +29,10 @@ def fetch_retail_series(start_year="1992"):
         logger.warning("CENSUS_API_KEY is not set. Requests may be heavily rate-limited.")
     
     params = {
-        "get": "VAL,NAICS2012,NAICS2012_TTL",
+        "get": "cell_value,data_type_code,category_code",
         "for": "us:*",
-        "time": f"from+{start_year}-01",
+        "time": f"from {start_year}-01",
+        "seasonally_adj": "yes",
         "key": api_key
     }
     
@@ -44,17 +45,22 @@ def fetch_retail_series(start_year="1992"):
 
     data = response.json()
     
-    # The first row contains the headers: ['VAL', 'NAICS2012', 'NAICS2012_TTL', 'time', 'us']
+    # The first row contains the headers
     headers = data[0]
     rows = data[1:]
     
     parsed_observations = []
     
     for row in rows:
-        val, naics, naics_ttl, time_str, _ = row
+        # The variables returned are cell_value, data_type_code, category_code, time, and us (the geography)
+        val, data_type, cat, time_str, _, _ = row
         
+        # We only want "SM" (Sales - Monthly) to ignore percentage changes/estimates
+        if data_type != "SM":
+            continue
+
         # We only care about our specific target sectors to save DB space
-        if naics not in TARGET_NAICS:
+        if cat not in TARGET_NAICS:
             continue
             
         # Time comes in as 'YYYY-MM'
@@ -63,8 +69,8 @@ def fetch_retail_series(start_year="1992"):
             value = float(val) if val is not None else 0.0
             
             parsed_observations.append({
-                "naics_code": naics,
-                "category_name": TARGET_NAICS[naics],
+                "naics_code": cat,
+                "category_name": TARGET_NAICS[cat],
                 "value": value,
                 "observed_at": observed_at
             })

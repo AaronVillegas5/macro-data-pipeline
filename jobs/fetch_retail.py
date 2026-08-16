@@ -14,13 +14,11 @@ def run():
         
     logger.info(f"Fetched {len(observations)} retail data points. Saving to databases...")
     
-    success_count = 0
-    for obs in observations:
-        try:
-            save_retail(obs)
-            success_count += 1
-        except Exception as e:
-            logger.error(f"Failed to save retail observation {obs.get('naics_code')}: {e}")
+    try:
+        save_retail(observations)
+        success_count = len(observations)
+    except Exception as e:
+        logger.error(f"Failed to save retail observations: {e}")
             
     logger.info(f"Retail Sales ingestion complete! Successfully saved {success_count} observations.")
 
