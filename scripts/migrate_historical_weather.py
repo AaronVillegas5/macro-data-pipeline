@@ -26,6 +26,7 @@ import os
 import sys
 
 from dotenv import load_dotenv
+
 # pyrefly: ignore [missing-import]
 from google.cloud import bigquery
 from sqlalchemy.orm import Session
@@ -53,6 +54,7 @@ _BQ_TABLE = "observations_v2"
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _observation_to_bq_row(obs: WeatherObservation) -> dict:
     """Serialise a WeatherObservation ORM instance into a BigQuery-safe dict."""
     return {
@@ -63,7 +65,6 @@ def _observation_to_bq_row(obs: WeatherObservation) -> dict:
         "humidity": obs.humidity,
         "precipitation": obs.precipitation,
         "observed_at": obs.observed_at.isoformat() if obs.observed_at else None,
-
         "created_at": obs.created_at.isoformat() if obs.created_at else None,
     }
 
@@ -85,6 +86,7 @@ def _stream_batch(client: bigquery.Client, table_ref: str, rows: list[dict], dry
 # Main migration logic
 # ---------------------------------------------------------------------------
 
+
 def migrate(batch_size: int = 500, dry_run: bool = False) -> None:
     """
     Migrates historical weather observations from PostgreSQL into Google BigQuery.
@@ -104,7 +106,7 @@ def migrate(batch_size: int = 500, dry_run: bool = False) -> None:
     """
     project_id = os.environ.get("BIGQUERY_PROJECT_ID")
     if not project_id:
-        raise EnvironmentError(
+        raise OSError(
             "BIGQUERY_PROJECT_ID environment variable is not set. "
             "Add it to your .env file or export it before running this script."
         )
@@ -131,7 +133,7 @@ def migrate(batch_size: int = 500, dry_run: bool = False) -> None:
         while True:
             batch_orm = (
                 db.query(WeatherObservation)
-                .filter(WeatherObservation.id > last_id) # Jump instantly to the next set
+                .filter(WeatherObservation.id > last_id)  # Jump instantly to the next set
                 .order_by(WeatherObservation.id)
                 .limit(batch_size)
                 .all()
@@ -144,7 +146,7 @@ def migrate(batch_size: int = 500, dry_run: bool = False) -> None:
             error_count = _stream_batch(bq_client, table_ref, rows, dry_run)
             total_errors += error_count
             migrated += len(rows)
-            
+
             # Update last_id for the next loop iteration
             last_id = batch_orm[-1].id
 
@@ -174,6 +176,7 @@ def migrate(batch_size: int = 500, dry_run: bool = False) -> None:
 # ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
+
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(

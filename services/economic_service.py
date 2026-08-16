@@ -1,5 +1,7 @@
-from api.fred_client import get_series
 from datetime import datetime
+
+from api.fred_client import get_series
+
 
 def fetch_series(series_id):
     data = get_series(series_id)
@@ -22,10 +24,12 @@ def fetch_series(series_id):
         value = obs.get("value")
         if value == ".":
             continue
-        rows.append({
-            "series_id": series_id,
-            "value": float(value),
-            "observed_at": datetime.fromisoformat(obs["date"])
-        })
+        rows.append(
+            {
+                "series_id": series_id,
+                "value": float(value),
+                "observed_at": datetime.fromisoformat(obs["date"]),
+            }
+        )
 
     return rows

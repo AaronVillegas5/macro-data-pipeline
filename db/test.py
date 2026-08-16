@@ -1,6 +1,7 @@
-from sqlalchemy import create_engine, text
-from dotenv import load_dotenv
 import os
+
+from dotenv import load_dotenv
+from sqlalchemy import create_engine, text
 
 load_dotenv(override=True)
 DATABASE_URL = os.getenv("DATABASE_URL")
