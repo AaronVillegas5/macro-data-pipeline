@@ -29,9 +29,7 @@ def fetch_retail_series(start_year="1992"):
     """
     api_key = os.environ.get("CENSUS_API_KEY")
     if not api_key:
-        logger.warning(
-            "CENSUS_API_KEY is not set. Requests may be heavily rate-limited."
-        )
+        logger.warning("CENSUS_API_KEY is not set. Requests may be heavily rate-limited.")
 
     params = {
         "get": "cell_value,data_type_code,category_code",

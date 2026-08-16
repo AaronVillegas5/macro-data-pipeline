@@ -13,9 +13,7 @@ app = FastAPI(
 
 app.include_router(insights_router, prefix="/api/v1")
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -94,9 +92,7 @@ def run_backfill_weather(request: BackfillRequest, background_tasks: BackgroundT
             request.start_date,
             request.end_date,
         )
-        logger.info(
-            f"Backfill job triggered: {request.start_date} → {request.end_date}"
-        )
+        logger.info(f"Backfill job triggered: {request.start_date} → {request.end_date}")
         return {
             "status": "backfill started",
             "start_date": str(request.start_date),

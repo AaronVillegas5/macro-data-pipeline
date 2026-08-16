@@ -53,9 +53,7 @@ def save_rows(rows):
             return
 
         stmt = insert(WeatherObservation).values(rows)
-        stmt = stmt.on_conflict_do_nothing(
-            index_elements=["location_id", "observed_at"]
-        )
+        stmt = stmt.on_conflict_do_nothing(index_elements=["location_id", "observed_at"])
 
         db.execute(stmt)
         db.commit()
@@ -205,9 +203,7 @@ if __name__ == "__main__":
     for city_data in CITIES_TO_ADD:
         # Check if it exists
         existing_location = (
-            db.query(Location)
-            .filter_by(latitude=city_data["latitude"], longitude=city_data["longitude"])
-            .first()
+            db.query(Location).filter_by(latitude=city_data["latitude"], longitude=city_data["longitude"]).first()
         )
 
         if not existing_location:
@@ -234,9 +230,7 @@ if __name__ == "__main__":
 
         for loc in locations:
             last_date = get_last_date(db, loc.id)
-            start = (
-                last_date.date() + timedelta(days=1) if last_date else date(1950, 1, 1)
-            )
+            start = last_date.date() + timedelta(days=1) if last_date else date(1950, 1, 1)
             end = date.today() - timedelta(days=1)
 
             print(f"\n=== {loc.name} ===")
@@ -258,9 +252,7 @@ if __name__ == "__main__":
                     try:
                         load_weather_pipeline(conn, buffer)
                     except Exception as e:
-                        print(
-                            f"Snowflake failed for {loc.name}, but Postgres succeeded. Error: {e}"
-                        )
+                        print(f"Snowflake failed for {loc.name}, but Postgres succeeded. Error: {e}")
                 else:
                     print(f"Skipping Snowflake flush for {loc.name} (No connection).")
 

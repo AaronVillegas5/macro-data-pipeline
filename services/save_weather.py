@@ -101,9 +101,7 @@ def save_weather_to_bigquery(data: dict) -> None:
         "location_id": data["location_id"],
         "temperature_c": data["temperature_c"],
         "wind_speed": data["wind_speed"],
-        "observed_at": observed_at.isoformat()
-        if hasattr(observed_at, "isoformat")
-        else str(observed_at),
+        "observed_at": observed_at.isoformat() if hasattr(observed_at, "isoformat") else str(observed_at),
         "pressure": data["pressure"],
         "humidity": data["humidity"],
     }
@@ -113,9 +111,7 @@ def save_weather_to_bigquery(data: dict) -> None:
     if errors:
         raise RuntimeError(f"BigQuery streaming insert errors: {errors}")
 
-    logger.debug(
-        "BigQuery: streamed observation for location_id=%s", data.get("location_id")
-    )
+    logger.debug("BigQuery: streamed observation for location_id=%s", data.get("location_id"))
 
 
 # ---------------------------------------------------------------------------

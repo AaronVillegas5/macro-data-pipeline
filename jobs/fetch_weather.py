@@ -10,9 +10,7 @@ from utilities.logger import logger
 def fetch_weather_for_location(db, conn, location: Location):
     """Fetches and saves weather observations for a specific Location record."""
     lat, lon = location.latitude, location.longitude
-    logger.info(
-        f"Fetching weather for {location.name} (id={location.id}, lat={lat}, lon={lon})"
-    )
+    logger.info(f"Fetching weather for {location.name} (id={location.id}, lat={lat}, lon={lon})")
 
     rows = fetch_weather(lat, lon)
     if not rows:
@@ -66,9 +64,7 @@ def run():
                 logger.error(f"Failed to fetch weather for {location.name}: {e}")
 
     except Exception:
-        logger.exception(
-            "Error occurred while querying locations for weather processing"
-        )
+        logger.exception("Error occurred while querying locations for weather processing")
     finally:
         db.close()
 

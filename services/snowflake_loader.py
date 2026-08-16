@@ -40,10 +40,7 @@ def load_economic_to_snowflake(conn, rows):
             batch = rows[i : i + batch_size]
 
             values = ", ".join(
-                [
-                    f"({q(r['series_id'])}, {q(r['series_name'])}, {q(r['observed_at'])}, {q(r['value'])})"
-                    for r in batch
-                ]
+                [f"({q(r['series_id'])}, {q(r['series_name'])}, {q(r['observed_at'])}, {q(r['value'])})" for r in batch]
             )
 
             sql = f"""

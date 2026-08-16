@@ -29,9 +29,7 @@ def upgrade() -> None:
         sa.Column("category_name", sa.String(), nullable=True),
         sa.Column("value", sa.Float(), nullable=False),
         sa.Column("observed_at", sa.DateTime(), nullable=False),
-        sa.Column(
-            "created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=True
-        ),
+        sa.Column("created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=True),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("naics_code", "observed_at", name="unique_retail_time"),
     )

@@ -24,9 +24,7 @@ def init_database():
     try:
         count = db.query(Location).count()
         if count == 0:
-            csv_path = os.path.abspath(
-                os.path.join(os.path.dirname(__file__), "..", "locations.csv")
-            )
+            csv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "locations.csv"))
             if os.path.exists(csv_path):
                 logger.info(f"Seeding locations from {csv_path}...")
                 with open(csv_path, mode="r", encoding="utf-8") as f:

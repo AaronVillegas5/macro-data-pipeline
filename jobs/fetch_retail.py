@@ -13,9 +13,7 @@ def run():
         logger.warning("No retail data returned from Census API.")
         return
 
-    logger.info(
-        f"Fetched {len(observations)} retail data points. Saving to databases..."
-    )
+    logger.info(f"Fetched {len(observations)} retail data points. Saving to databases...")
 
     try:
         save_retail(observations)
@@ -23,9 +21,7 @@ def run():
     except Exception as e:
         logger.error(f"Failed to save retail observations: {e}")
 
-    logger.info(
-        f"Retail Sales ingestion complete! Successfully saved {success_count} observations."
-    )
+    logger.info(f"Retail Sales ingestion complete! Successfully saved {success_count} observations.")
 
 
 if __name__ == "__main__":
