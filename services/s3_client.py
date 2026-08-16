@@ -33,16 +33,12 @@ def save_raw_to_s3(source, series_id, raw_response, start=None, end=None):
     logger.info(f"Saved raw {source}/{series_id} to S3 at {key}")
 
 
-def save_raw_response(
-    source, identifier, raw_response, db_session, start=None, end=None
-):
+def save_raw_response(source, identifier, raw_response, db_session, start=None, end=None):
     # Save to S3 (no db dependency)
     save_raw_to_s3(source, identifier, raw_response, start, end)
 
     # Save to Postgres
-    record = RawApiResponse(
-        source=source, identifier=identifier, raw_response=raw_response
-    )
+    record = RawApiResponse(source=source, identifier=identifier, raw_response=raw_response)
 
     db_session.add(record)
     db_session.commit()

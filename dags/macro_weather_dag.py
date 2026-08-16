@@ -111,14 +111,7 @@ with DAG(
         bash_command="cd /opt/airflow/project_root/dbt && dbt test --profiles-dir .",
     )
 
-    generate_briefing = PythonOperator(
-        task_id="generate_ai_executive_briefing", python_callable=run_daily_ai_briefing
-    )
+    generate_briefing = PythonOperator(task_id="generate_ai_executive_briefing", python_callable=run_daily_ai_briefing)
 
     # Set DAG Dependencies, ingestion runs first, must be successful before dbt run, dbt test, and AI briefing occur
-    (
-        [ingest_weather, ingest_economic, ingest_retail]
-        >> dbt_run
-        >> dbt_test
-        >> generate_briefing
-    )
+    ([ingest_weather, ingest_economic, ingest_retail] >> dbt_run >> dbt_test >> generate_briefing)

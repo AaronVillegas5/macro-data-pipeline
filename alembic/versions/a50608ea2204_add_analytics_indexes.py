@@ -32,9 +32,7 @@ def upgrade() -> None:
         ["location_id", "observed_at"],
         unique=False,
     )
-    op.create_index(
-        "idx_weather_time", "weather_observations", ["observed_at"], unique=False
-    )
+    op.create_index("idx_weather_time", "weather_observations", ["observed_at"], unique=False)
     # ### end Alembic commands ###
 
 

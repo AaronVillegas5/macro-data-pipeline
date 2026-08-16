@@ -11,9 +11,7 @@ print("Connecting to:", DATABASE_URL)
 engine = create_engine(DATABASE_URL)
 
 with engine.connect() as conn:
-    result = conn.execute(
-        text("SELECT * FROM weather_observations ORDER BY observed_at DESC LIMIT 5")
-    )
+    result = conn.execute(text("SELECT * FROM weather_observations ORDER BY observed_at DESC LIMIT 5"))
 
     for row in result:
         print(row)

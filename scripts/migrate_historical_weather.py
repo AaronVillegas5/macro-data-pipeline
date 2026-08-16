@@ -69,9 +69,7 @@ def _observation_to_bq_row(obs: WeatherObservation) -> dict:
     }
 
 
-def _stream_batch(
-    client: bigquery.Client, table_ref: str, rows: list[dict], dry_run: bool
-) -> int:
+def _stream_batch(client: bigquery.Client, table_ref: str, rows: list[dict], dry_run: bool) -> int:
     """Stream a list of row dicts to BigQuery. Returns the number of errors."""
     if dry_run:
         logger.info("[DRY-RUN] Would stream %d rows to %s", len(rows), table_ref)
@@ -135,9 +133,7 @@ def migrate(batch_size: int = 500, dry_run: bool = False) -> None:
         while True:
             batch_orm = (
                 db.query(WeatherObservation)
-                .filter(
-                    WeatherObservation.id > last_id
-                )  # Jump instantly to the next set
+                .filter(WeatherObservation.id > last_id)  # Jump instantly to the next set
                 .order_by(WeatherObservation.id)
                 .limit(batch_size)
                 .all()

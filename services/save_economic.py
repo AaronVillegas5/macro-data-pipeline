@@ -40,9 +40,7 @@ def save_economic_to_bigquery(data: dict) -> None:
         "series_id": data["series_id"],
         "series_name": data.get("series_name", ""),
         "value": float(data["value"]),
-        "observed_at": observed_at.isoformat()
-        if hasattr(observed_at, "isoformat")
-        else str(observed_at),
+        "observed_at": observed_at.isoformat() if hasattr(observed_at, "isoformat") else str(observed_at),
     }
     errors = client.insert_rows_json(table_ref, [row])
     if errors:

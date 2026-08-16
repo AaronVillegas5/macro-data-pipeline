@@ -38,9 +38,7 @@ schema = [
 ]
 
 table = bigquery.Table(table_id, schema=schema)
-table.time_partitioning = bigquery.TimePartitioning(
-    type_=bigquery.TimePartitioningType.MONTH, field="observed_at"
-)
+table.time_partitioning = bigquery.TimePartitioning(type_=bigquery.TimePartitioningType.MONTH, field="observed_at")
 table.clustering_fields = ["series_id"]
 
 try:

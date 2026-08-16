@@ -10,16 +10,12 @@ def get_bq_client():
     if not key_path or not os.path.exists(key_path):
         for candidate in ["/app/gcp-key.json", "gcp-key.json", "../gcp-key.json"]:
             if os.path.exists(candidate):
-                os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.abspath(
-                    candidate
-                )
+                os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.abspath(candidate)
                 break
     return bigquery.Client(project=project_id)
 
 
-def query_macro_weather_mart(
-    start_date: str, end_date: str, location_name: str = None
-) -> list:
+def query_macro_weather_mart(start_date: str, end_date: str, location_name: str = None) -> list:
     """Queries the physical dbt mart fct_monthly_macro_weather for analytics metrics."""
     project_id = os.getenv("BIGQUERY_PROJECT_ID", "macro-data-pipeline-498302")
     client = get_bq_client()
@@ -69,11 +65,7 @@ def get_climate_extremes(year: int, metric: str = "dry_spell") -> list:
     project_id = os.getenv("BIGQUERY_PROJECT_ID", "macro-data-pipeline-498302")
     client = get_bq_client()
 
-    order_col = (
-        "longest_dry_spell_days DESC"
-        if metric == "dry_spell"
-        else "avg_monthly_temp_c DESC"
-    )
+    order_col = "longest_dry_spell_days DESC" if metric == "dry_spell" else "avg_monthly_temp_c DESC"
     query = f"""
     SELECT location_name, year_month, avg_monthly_temp_c, total_monthly_precipitation_mm, longest_dry_spell_days
     FROM `{project_id}.weather_data.fct_monthly_macro_weather`

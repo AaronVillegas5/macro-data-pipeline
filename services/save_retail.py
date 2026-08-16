@@ -62,9 +62,7 @@ def save_retail_to_bigquery(data) -> None:
                 "naics_code": d["naics_code"],
                 "category_name": d["category_name"],
                 "value": d["value"],
-                "observed_at": observed_at.isoformat()
-                if hasattr(observed_at, "isoformat")
-                else str(observed_at),
+                "observed_at": observed_at.isoformat() if hasattr(observed_at, "isoformat") else str(observed_at),
             }
         )
 
@@ -89,9 +87,7 @@ def save_retail(data) -> None:
     try:
         save_retail_to_postgres(data)
     except Exception as e:
-        logger.warning(
-            "PostgreSQL retail sink failed, continuing to BigQuery. Error: %s", e
-        )
+        logger.warning("PostgreSQL retail sink failed, continuing to BigQuery. Error: %s", e)
 
     try:
         save_retail_to_bigquery(data)
