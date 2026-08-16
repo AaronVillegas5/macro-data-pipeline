@@ -2,4 +2,5 @@ SELECT
     observed_at
 FROM {{ ref('stg_weather_observations')}}
 WHERE 
-    observed_at > CURRENT_TIMESTAMP
+    -- Open-Meteo gives forcast for up to midnight of today
+    observed_at > TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 1 DAY)
