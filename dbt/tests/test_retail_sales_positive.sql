@@ -1,0 +1,11 @@
+-- ==============================================================================
+-- 🧪 Data Quality Test: Retail Sales Must Be Positive
+-- ==============================================================================
+--
+-- BUSINESS REQUIREMENTS:
+-- 1. Retail sales values should never be negative (you can't have less than $0 in total monthly sales).
+-- 2. Query the `stg_retail_observations` model.
+-- 3. Return any rows where `sales_millions` < 0. 
+--    (dbt tests fail if the query returns ANY rows).
+--
+-- WRITE YOUR SQL BELOW:
