@@ -15,6 +15,16 @@ from airflow.operators.python import PythonOperator
 # pyrefly: ignore [missing-import]
 from airflow.operators.bash import BashOperator
 
+def send_discord_alert(context):
+    webhook_url = "https://discord.com/api/webhooks/1538356817845948418/EC4I2UfYsZ-5TxOoi2RmmFKQ9ysMR_OCZzqWWQInTlN0KadfJwSB66PqioIwZMLmPHKK"
+    task_instance = context.get("task_instance")
+    task_id = task_instance.task_id
+    execution_date = context.get("execution_date")
+    
+    payload = {
+        "content": f"🚨 **Airflow Pipeline Failure!** 🚨\n**Task:** `{task_id}` failed on `{execution_date}`. Check the Airflow logs immediately."
+    }
+    requests.post(webhook_url, json=payload)
 # Default arguments applied to all tasks
 default_args = {
     "owner": "Aaron Villegas",
@@ -49,16 +59,6 @@ def run_daily_ai_briefing(**kwargs):
     except Exception as e:
         logger.warning(f"AI Briefing skipped or encountered an error: {e}")
 
-def send_discord_alert(context):
-    webhook_url = "https://discord.com/api/webhooks/1538356817845948418/EC4I2UfYsZ-5TxOoi2RmmFKQ9ysMR_OCZzqWWQInTlN0KadfJwSB66PqioIwZMLmPHKK"
-    task_instance = context.get("task_instance")
-    task_id = task_instance.task_id
-    execution_date = context.get("execution_date")
-    
-    payload = {
-        "content": f"🚨 **Airflow Pipeline Failure!** 🚨\n**Task:** `{task_id}` failed on `{execution_date}`. Check the Airflow logs immediately."
-    }
-    requests.post(webhook_url, json=payload)
 
 with DAG(
     dag_id="macro_weather_daily_pipeline",
