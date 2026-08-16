@@ -1,0 +1,23 @@
+-- ==============================================================================
+-- 🛒 Intermediate Model: Pivoted Retail Sales
+-- ==============================================================================
+--
+-- BUSINESS REQUIREMENTS:
+-- 1. Read from `ref('stg_retail_observations')`
+-- 2. The staging model has data in a "long" format (one row per NAICS code per month).
+--    We need to PIVOT this into a "wide" format so there is exactly ONE row per month.
+-- 3. Calculate Year-over-Year (YoY) Growth for Total Retail Sales.
+--    - Hint: Use the `LAG()` window function partitioned by the month and ordered by year, 
+--      or simply `LAG(sales, 12) OVER (ORDER BY observed_date)`.
+--
+-- RESULTING COLUMNS (Target Schema):
+-- - observed_year (INT64)
+-- - observed_month (INT64)
+-- - total_retail_sales_millions (NUMERIC/FLOAT64)
+-- - total_retail_sales_yoy_growth_pct (NUMERIC/FLOAT64)  <-- The YoY variance!
+-- - grocery_sales_millions (NUMERIC/FLOAT64)
+-- - ecommerce_sales_millions (NUMERIC/FLOAT64)
+-- - auto_sales_millions (NUMERIC/FLOAT64)
+-- - clothing_sales_millions (NUMERIC/FLOAT64)
+--
+-- WRITE YOUR SQL BELOW:
