@@ -26,6 +26,13 @@ jobs:
 
       - name: Validate DAGs (Check for Import & Syntax Errors)
         run: |
-          python -c "from airflow.models import DagBag; d = DagBag(dag_folder='dags/', include_examples=False); assert len(d.import_errors) == 0, f'DAG Import Errors: {d.import_errors}'"
+          python -c "
+          try:
+              from airflow.dag_processing.dagbag import DagBag
+          except ImportError:
+              from airflow.models import DagBag
+          d = DagBag(dag_folder='dags/', include_examples=False)
+          assert len(d.import_errors) == 0, f'DAG Import Errors: {d.import_errors}'
+          "
         env:
           PYTHONPATH: ${{ github.workspace }}
