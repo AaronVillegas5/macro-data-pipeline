@@ -1,5 +1,6 @@
-from dotenv import load_dotenv
 import os
+
+from dotenv import load_dotenv
 
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -8,9 +9,6 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
 from alembic import context
 
 # this is the Alembic Config object, which provides
@@ -18,10 +16,7 @@ from alembic import context
 config = context.config
 
 # Override sqlalchemy.url with environment variable
-config.set_main_option(
-    "sqlalchemy.url",
-    os.environ.get("DATABASE_URL")
-)
+config.set_main_option("sqlalchemy.url", os.environ.get("DATABASE_URL"))
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL environment variable is not set!")
 # Interpret the config file for Python logging.
@@ -34,7 +29,7 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 from db.connection import Base
-from db import models  
+
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
@@ -68,6 +63,7 @@ def run_migrations_offline() -> None:
 
 
 from sqlalchemy import create_engine
+
 
 def run_migrations_online():
     engine = create_engine(DATABASE_URL, pool_pre_ping=True)

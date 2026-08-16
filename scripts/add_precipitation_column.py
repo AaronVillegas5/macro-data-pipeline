@@ -1,8 +1,10 @@
 """add_precipitation_column.py
 Adds the precipitation column to BigQuery weather_data.observations_v2 table.
 """
+
 import os
 import sys
+
 from dotenv import load_dotenv
 from google.cloud import bigquery
 

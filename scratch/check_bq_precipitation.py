@@ -1,9 +1,10 @@
 import os
+
 from google.cloud import bigquery
 from google.oauth2 import service_account
 
 # Path to the service account key
-key_path = os.path.join(os.path.dirname(__file__), '..', 'gcp-key.json')
+key_path = os.path.join(os.path.dirname(__file__), "..", "gcp-key.json")
 
 # Authenticate using the service account key
 credentials = service_account.Credentials.from_service_account_file(key_path)

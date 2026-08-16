@@ -1,8 +1,10 @@
 """create_bq_economic_table.py
 Creates the economic_data dataset and observations_v2 table in BigQuery.
 """
+
 import os
 import sys
+
 from dotenv import load_dotenv
 from google.cloud import bigquery
 
@@ -36,10 +38,7 @@ schema = [
 ]
 
 table = bigquery.Table(table_id, schema=schema)
-table.time_partitioning = bigquery.TimePartitioning(
-    type_=bigquery.TimePartitioningType.MONTH,
-    field="observed_at"
-)
+table.time_partitioning = bigquery.TimePartitioning(type_=bigquery.TimePartitioningType.MONTH, field="observed_at")
 table.clustering_fields = ["series_id"]
 
 try:
@@ -49,4 +48,3 @@ try:
     print(f"Table {table_id} recreated with MONTH partitioning.")
 except Exception as e:
     print(f"Error creating table: {e}")
-

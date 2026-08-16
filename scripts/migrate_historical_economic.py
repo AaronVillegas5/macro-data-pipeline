@@ -1,9 +1,11 @@
 """migrate_historical_economic.py
 Streams all EconomicObservation rows from PostgreSQL into BigQuery (economic_data.observations_v2).
 """
+
+import logging
 import os
 import sys
-import logging
+
 from dotenv import load_dotenv
 from google.cloud import bigquery
 
@@ -23,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 _BQ_DATASET = "economic_data"
 _BQ_TABLE = "observations_v2"
+
 
 def main():
     project_id = os.environ.get("BIGQUERY_PROJECT_ID", "macro-data-pipeline-498302")
@@ -45,12 +48,16 @@ def main():
 
         rows = []
         for obs in observations:
-            rows.append({
-                "series_id": obs.series_id,
-                "series_name": obs.series_name or "",
-                "value": float(obs.value),
-                "observed_at": obs.observed_at.isoformat() if hasattr(obs.observed_at, "isoformat") else str(obs.observed_at),
-            })
+            rows.append(
+                {
+                    "series_id": obs.series_id,
+                    "series_name": obs.series_name or "",
+                    "value": float(obs.value),
+                    "observed_at": obs.observed_at.isoformat()
+                    if hasattr(obs.observed_at, "isoformat")
+                    else str(obs.observed_at),
+                }
+            )
 
         # Use Batch Load Job instead of streaming inserts to bypass BigQuery's 10-year streaming limit
         job_config = bigquery.LoadJobConfig(
@@ -69,9 +76,9 @@ def main():
 
         logger.info("Economic batch migration completed successfully!")
 
-
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     main()

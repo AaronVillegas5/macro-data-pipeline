@@ -1,10 +1,11 @@
-from services.weather_service import fetch_weather
 from db.connection import SessionLocal
 from db.models import Location
-from utilities.logger import logger
+from db.snowflake_connection import get_snowflake_connection
 from services.save_weather import save_weather
 from services.snowflake_loader import load_weather_to_snowflake
-from db.snowflake_connection import get_snowflake_connection
+from services.weather_service import fetch_weather
+from utilities.logger import logger
+
 
 def fetch_weather_for_location(db, conn, location: Location):
     """Fetches and saves weather observations for a specific Location record."""
@@ -28,7 +29,7 @@ def fetch_weather_for_location(db, conn, location: Location):
             "longitude": lon,
             "observed_at": row["observed_at"],
             "temperature": row["temperature_c"],
-            "precipitation": row.get("precipitation", 0.0)
+            "precipitation": row.get("precipitation", 0.0),
         }
         for row in rows
     ]
@@ -38,6 +39,7 @@ def fetch_weather_for_location(db, conn, location: Location):
             load_weather_to_snowflake(conn, snowflake_rows)
         except Exception as e:
             logger.warning(f"Snowflake loader failed for {location.name}: {e}")
+
 
 def run():
     """Loops through all active locations in PostgreSQL and ingests their latest weather."""
@@ -61,10 +63,11 @@ def run():
             except Exception as e:
                 logger.error(f"Failed to fetch weather for {location.name}: {e}")
 
-    except Exception as e:
+    except Exception:
         logger.exception("Error occurred while querying locations for weather processing")
     finally:
         db.close()
 
+
 if __name__ == "__main__":
-    run()
+    run()
