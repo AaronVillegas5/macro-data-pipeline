@@ -1,9 +1,10 @@
 import os
+
 from google.cloud import bigquery
 from google.oauth2 import service_account
 
 # Path to the service account key
-key_path = os.path.join(os.path.dirname(__file__), '..', 'gcp-key.json')
+key_path = os.path.join(os.path.dirname(__file__), "..", "gcp-key.json")
 
 # Authenticate using the service account key
 credentials = service_account.Credentials.from_service_account_file(key_path)
@@ -30,7 +31,9 @@ results = query_job.result()
 found = False
 for row in results:
     found = True
-    print(f"Duplicate found: location_id={row.location_id}, observed_at={row.observed_at}, count={row.c}")
+    print(
+        f"Duplicate found: location_id={row.location_id}, observed_at={row.observed_at}, count={row.c}"
+    )
 
 if not found:
     print("No duplicates found in stg_weather_observations!")
@@ -49,4 +52,6 @@ LIMIT 5
 print("\nChecking raw table...")
 query_job2 = client.query(query2)
 for row in query_job2.result():
-    print(f"Raw Duplicate: location_id={row.location_id}, observed_at={row.observed_at}, count={row.c}")
+    print(
+        f"Raw Duplicate: location_id={row.location_id}, observed_at={row.observed_at}, count={row.c}"
+    )

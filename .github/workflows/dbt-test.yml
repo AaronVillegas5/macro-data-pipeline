@@ -18,7 +18,7 @@ jobs:
           pip install dbt-bigquery
           
       - name: Run dbt
-        # Note: You need to pass your GCP credentials securely using GitHub Secrets!
+        # Note: You need to pass your GCP credentials securely using GitHub Secrets
         env:
           GCP_KEY: ${{ secrets.GCP_CREDENTIALS }}
         run: |

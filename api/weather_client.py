@@ -1,9 +1,13 @@
-import requests, time
+import time
+from datetime import datetime, timezone
+
+import requests
 from requests.exceptions import RequestException
-from utilities.logger import logger
+
 from db.connection import SessionLocal
 from services.s3_client import save_raw_response
-from datetime import datetime, timezone
+from utilities.logger import logger
+
 
 def get_weather(lat, lon):
     logger.info("Calling Open-Meteo API")
@@ -15,7 +19,7 @@ def get_weather(lat, lon):
         "longitude": lon,
         "current_weather": True,
         "hourly": "pressure_msl,windspeed_10m,temperature_2m,relative_humidity_2m",
-        "forecast_days": 1
+        "forecast_days": 1,
     }
 
     last_error = None
@@ -29,8 +33,8 @@ def get_weather(lat, lon):
 
         except RequestException as e:
             last_error = e
-            wait = 2 ** attempt
-            logger.warning(f"Attempt {attempt+1} failed: {e}. retrying in {wait}s")
+            wait = 2**attempt
+            logger.warning(f"Attempt {attempt + 1} failed: {e}. retrying in {wait}s")
             time.sleep(wait)
 
     else:
@@ -48,7 +52,7 @@ def get_weather(lat, lon):
             data,
             db,
             start=now.isoformat(),
-            end=now.isoformat()
+            end=now.isoformat(),
         )
     finally:
         db.close()

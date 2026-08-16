@@ -1,5 +1,6 @@
-import requests
 import json
+
+import requests
 
 url = "https://api.open-meteo.com/v1/forecast"
 
@@ -8,7 +9,7 @@ params = {
     "longitude": -117.6020,
     "current_weather": True,
     "hourly": "temperature_2m,pressure_msl,relative_humidity_2m,windspeed_10m,precipitation",
-    "timezone": "America/Los_Angeles"
+    "timezone": "America/Los_Angeles",
 }
 
 response = requests.get(url, params=params)
