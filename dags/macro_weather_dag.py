@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import sys
 import os
+import requests
 
 # Ensure project root is on sys.path for Airflow workers
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -21,6 +22,7 @@ default_args = {
     "email_on_failure": False,
     "retries": 2,
     "retry_delay": timedelta(minutes=5),
+    "on_failure_callback": send_discord_alert,
 }
 
 def run_weather_ingestion(**kwargs):
@@ -33,6 +35,11 @@ def run_economic_ingestion(**kwargs):
     # Fetches latest macroeconomic series from FRED API
     fetch_economic_run()
 
+def run_retail_ingestion(**kwargs):
+    from jobs.fetch_retail import run as fetch_retail_run
+    # Fetches latest retail sales from U.S. Census API
+    fetch_retail_run()
+
 def run_daily_ai_briefing(**kwargs):
     from utilities.logger import logger
     try:
@@ -41,6 +48,17 @@ def run_daily_ai_briefing(**kwargs):
         logger.info(f"AI Executive Briefing generated successfully:\n{briefing}")
     except Exception as e:
         logger.warning(f"AI Briefing skipped or encountered an error: {e}")
+
+def send_discord_alert(context):
+    webhook_url = "https://discord.com/api/webhooks/1538356817845948418/EC4I2UfYsZ-5TxOoi2RmmFKQ9ysMR_OCZzqWWQInTlN0KadfJwSB66PqioIwZMLmPHKK"
+    task_instance = context.get("task_instance")
+    task_id = task_instance.task_id
+    execution_date = context.get("execution_date")
+    
+    payload = {
+        "content": f"🚨 **Airflow Pipeline Failure!** 🚨\n**Task:** `{task_id}` failed on `{execution_date}`. Check the Airflow logs immediately."
+    }
+    requests.post(webhook_url, json=payload)
 
 with DAG(
     dag_id="macro_weather_daily_pipeline",
@@ -62,6 +80,11 @@ with DAG(
         python_callable=run_economic_ingestion,
     )
 
+    ingest_retail = PythonOperator(
+        task_id="ingest_census_retail_data",
+        python_callable=run_retail_ingestion,
+    )
+
     # Trigger dbt run for BigQuery models
     dbt_run = BashOperator(
         task_id="dbt_run_transformations",
@@ -79,5 +102,5 @@ with DAG(
         python_callable=run_daily_ai_briefing
     )
 
-    # Set DAG Dependencies
-    [ingest_weather, ingest_economic] >> dbt_run >> dbt_test >> generate_briefing
+    # Set DAG Dependencies, ingestion runs first, must be successful before dbt run, dbt test, and AI briefing occur
+    [ingest_weather, ingest_economic, ingest_retail] >> dbt_run >> dbt_test >> generate_briefing
