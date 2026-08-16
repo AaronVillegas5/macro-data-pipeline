@@ -1,3 +1,4 @@
+# SQLalchemy models
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
@@ -88,9 +89,28 @@ class EconomicObservation(Base):
         server_default=func.now()
     )
 
-# class RetailObservation(Base):
-#     __tablename__ = "retail_observations"
-#     id = Column(Integer, primary_key=True, nullable=False)
+class RetailObservation(Base):
+    __tablename__ = "retail_observations"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "naics_code",
+            "observed_at",
+            name="unique_retail_time"
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, nullable=False)
+
+    naics_code = Column(String, nullable=False)
+    category_name = Column(String)
+    value = Column(Float, nullable=False)
+    observed_at = Column(DateTime, nullable=False)
+
+    created_at = Column(
+        DateTime,
+        server_default=func.now()
+    )
 class RawApiResponse(Base):
     __tablename__ = "raw_api_responses"
 

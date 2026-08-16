@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 # BigQuery constants
 _BQ_DATASET = "weather_data"
-_BQ_TABLE = "observations"
+_BQ_TABLE = "observations_v2"
 
 
 # ---------------------------------------------------------------------------
