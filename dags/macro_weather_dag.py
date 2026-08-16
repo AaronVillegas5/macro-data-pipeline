@@ -79,7 +79,7 @@ with DAG(
     dag_id="macro_weather_daily_pipeline",
     default_args=default_args,
     description="Daily ingestion of FRED & Weather APIs followed by dbt BigQuery transformations",
-    schedule_interval="0 6 * * *",  # Runs daily at 06:00 UTC
+    schedule="0 6 * * *",  # Runs daily at 06:00 UTC
     start_date=datetime(2026, 8, 15),
     catchup=True,
     tags=["macro", "weather", "dbt", "production"],
