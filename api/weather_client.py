@@ -14,7 +14,8 @@ def get_weather(lat, lon):
         "latitude": lat,
         "longitude": lon,
         "current_weather": True,
-        "hourly": "pressure_msl,windspeed_10m,temperature_2m,relative_humidity_2m"
+        "hourly": "pressure_msl,windspeed_10m,temperature_2m,relative_humidity_2m",
+        "forecast_days": 1
     }
 
     last_error = None
