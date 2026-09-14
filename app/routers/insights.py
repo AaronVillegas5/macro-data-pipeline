@@ -40,8 +40,14 @@ def get_ai_insight(payload: QueryRequest):
 
 @router.get("/macro/summary")
 def get_macro_summary(db: Session = Depends(get_db)):
-    """Fetch latest pre-aggregated weather and macro observations from dbt mart."""
-    query = text("SELECT * FROM rpt_macro_weather_dashboard ORDER BY observation_date DESC LIMIT 30")
+    """Fetch recent weather observations from PostgreSQL as a lightweight summary."""
+    query = text("""
+        SELECT w.observed_at, w.temperature_c, w.precipitation, w.humidity, l.name AS location_name
+        FROM weather_observations w
+        JOIN locations l ON w.location_id = l.id
+        ORDER BY w.observed_at DESC
+        LIMIT 30
+    """)
     result = db.execute(query).fetchall()
     return [dict(row._mapping) for row in result]
 
@@ -51,7 +57,7 @@ def check_freshness(db: Session = Depends(get_db)):
     """Checks if the latest data observation is less than 24 hours old."""
     query = text("""
         SELECT MAX(observed_at) as last_observation 
-        FROM stg_weather_observations
+        FROM weather_observations
     """)
     last_obs = db.execute(query).scalar()
     

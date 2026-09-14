@@ -9,6 +9,7 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException, status
 from pydantic import BaseModel, Field, model_validator
 
 from app.routers.insights import router as insights_router
+from app.routers.forecasting import router as forecasting_router
 
 app = FastAPI(
     title="Pi Macro Data Pipeline API",
@@ -16,6 +17,7 @@ app = FastAPI(
 )
 
 app.include_router(insights_router, prefix="/api/v1")
+app.include_router(forecasting_router, prefix="/api/v1")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 logger = logging.getLogger(__name__)
