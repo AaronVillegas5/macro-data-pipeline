@@ -3,6 +3,7 @@ import os
 
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 
+
 def post_discord_alert(test_name, column_name, error_message):
     if not DISCORD_WEBHOOK_URL:
         return

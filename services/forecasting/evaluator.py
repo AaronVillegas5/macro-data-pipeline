@@ -1,6 +1,7 @@
 """
 evaluator.py — Forecast accuracy metrics: RMSE, MAE, MAPE.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -12,9 +13,10 @@ import pandas as pd
 @dataclass
 class EvaluationMetrics:
     """Error metrics computed between actual and predicted trajectories."""
-    rmse: float   # Root Mean Squared Error — penalises large deviations
-    mae: float    # Mean Absolute Error — average absolute deviation in original units
-    mape: float   # Mean Absolute Percentage Error — scale-free %; None if actuals contain zeros
+
+    rmse: float  # Root Mean Squared Error — penalises large deviations
+    mae: float  # Mean Absolute Error — average absolute deviation in original units
+    mape: float  # Mean Absolute Percentage Error — scale-free %; None if actuals contain zeros
 
 
 def evaluate(actual: pd.Series, predicted: pd.Series) -> EvaluationMetrics:
@@ -36,7 +38,7 @@ def evaluate(actual: pd.Series, predicted: pd.Series) -> EvaluationMetrics:
     errors = actual.values - predicted.values
     abs_errors = np.abs(errors)
 
-    rmse = float(np.sqrt(np.mean(errors ** 2)))
+    rmse = float(np.sqrt(np.mean(errors**2)))
     mae = float(np.mean(abs_errors))
 
     # MAPE: guard against division by zero
@@ -51,4 +53,3 @@ def evaluate(actual: pd.Series, predicted: pd.Series) -> EvaluationMetrics:
         mae=round(mae, 4),
         mape=round(mape, 4),
     )
-

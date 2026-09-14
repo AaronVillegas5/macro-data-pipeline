@@ -1,6 +1,7 @@
 """
 sarimax_engine.py — SARIMAX model fitting, order search, and forecasting.
 """
+
 from __future__ import annotations
 
 import itertools
@@ -17,11 +18,12 @@ warnings.filterwarnings("ignore", module="statsmodels")
 @dataclass
 class ForecastResult:
     """Output of a SARIMAX fit and forecast."""
-    model_order: tuple          # (p, d, q)
-    seasonal_order: tuple       # (P, D, Q, s)
+
+    model_order: tuple  # (p, d, q)
+    seasonal_order: tuple  # (P, D, Q, s)
     aic: float
-    predictions: pd.Series     # in-sample test period point forecast
-    conf_int: pd.DataFrame      # columns: lower, upper (95% CI)
+    predictions: pd.Series  # in-sample test period point forecast
+    conf_int: pd.DataFrame  # columns: lower, upper (95% CI)
     future_forecast: Optional[pd.Series] = None
     future_conf_int: Optional[pd.DataFrame] = None
 
@@ -30,11 +32,12 @@ def _try_fit(train: pd.Series, order: tuple, seasonal_order: tuple) -> Optional[
     """Attempt to fit a SARIMAX model, returning None on any failure."""
     try:
         from statsmodels.tsa.statespace.sarimax import SARIMAX
+
         model = SARIMAX(
             train,
             order=order,
             seasonal_order=seasonal_order,
-            enforce_stationarity=False,   # prevents LinAlg crashes on non-stationary series
+            enforce_stationarity=False,  # prevents LinAlg crashes on non-stationary series
             enforce_invertibility=False,  # prevents LinAlg crashes on complex seasonal MA
         )
         return model.fit(disp=False, maxiter=200)
@@ -76,6 +79,7 @@ def _aic_grid_search(
         best_order = (1, 1, 1)
         best_seasonal_order = (0, 0, 0, 0)
         from statsmodels.tsa.statespace.sarimax import SARIMAX
+
         best_result = SARIMAX(
             train,
             order=best_order,
@@ -133,4 +137,3 @@ def fit_and_forecast(
         future_forecast=future_mean,
         future_conf_int=future_ci,
     )
-

@@ -65,7 +65,4 @@ def check_freshness(db: Session = Depends(get_db)):
 
     is_stale = last_obs < (datetime.utcnow() - timedelta(hours=24))
 
-    return {
-        "status": "STALE" if is_stale else "HEALTHY",
-        "last_observation": last_obs
-    }
+    return {"status": "STALE" if is_stale else "HEALTHY", "last_observation": last_obs}

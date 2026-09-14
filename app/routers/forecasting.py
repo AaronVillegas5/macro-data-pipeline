@@ -1,6 +1,7 @@
 """
 app/routers/forecasting.py — SARIMAX forecasting and evaluation API endpoints.
 """
+
 from __future__ import annotations
 
 from typing import Any, Optional
@@ -18,6 +19,7 @@ router = APIRouter(prefix="/forecast", tags=["Forecasting"])
 
 
 # ── Request/Response Models ───────────────────────────────────────────────────
+
 
 class EvaluateRequest(BaseModel):
     domain: str
@@ -89,7 +91,7 @@ class EvaluateResponse(BaseModel):
     aic: float
     test_months: int
     metrics: MetricsPayload
-    actual: dict[str, float]       # {ISO date string: value}
+    actual: dict[str, float]  # {ISO date string: value}
     predicted: dict[str, float]
     conf_int_lower: dict[str, float]
     conf_int_upper: dict[str, float]
@@ -110,12 +112,14 @@ class PredictResponse(BaseModel):
 
 # ── Helper ────────────────────────────────────────────────────────────────────
 
+
 def _series_to_dict(s) -> dict[str, float]:
     """Convert a pd.Series with DatetimeIndex to {ISO date string: value}."""
     return {str(k.date()): round(float(v), 4) for k, v in s.items()}
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
 
 @router.post("/arima/evaluate", response_model=EvaluateResponse)
 def evaluate_forecast(payload: EvaluateRequest):
@@ -251,6 +255,7 @@ def predict_future(payload: PredictRequest):
 
     # Train on ALL available data (train + test) for maximum future accuracy
     import pandas as pd
+
     full_series = pd.concat([series.train, series.test])
 
     try:
@@ -276,4 +281,3 @@ def predict_future(payload: PredictRequest):
         conf_int_lower=_series_to_dict(forecast.future_conf_int["lower"]),
         conf_int_upper=_series_to_dict(forecast.future_conf_int["upper"]),
     )
-

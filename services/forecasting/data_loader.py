@@ -4,6 +4,7 @@ data_loader.py — Domain-isolated time series extraction from BigQuery.
 Each domain (weather, retail, economic) uses a strictly separate query
 strategy to prevent cross-domain feature leakage / spurious correlations.
 """
+
 from __future__ import annotations
 
 import os
@@ -36,11 +37,13 @@ def _get_bq_client():
     global _bq_client
     if _bq_client is None:
         from google.cloud import bigquery  # deferred — avoids crash without GCP creds
+
         _bq_client = bigquery.Client()
     return _bq_client
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
 
 def _parse_year_month_index(df: pd.DataFrame) -> pd.DataFrame:
     """Converts 'year_month' (YYYY-MM string) into a proper monthly DatetimeIndex."""
@@ -63,6 +66,7 @@ def _train_test_split(series: pd.Series, test_months: int) -> tuple[pd.Series, p
 
 # ── Domain-isolated query builders ────────────────────────────────────────────
 
+
 def _load_weather_series(metric: str, location_name: str) -> pd.DataFrame:
     """Query a single city's monthly weather metric.
 
@@ -83,10 +87,9 @@ def _load_weather_series(metric: str, location_name: str) -> pd.DataFrame:
         ORDER BY year_month ASC
     """
     from google.cloud import bigquery
+
     job_config = bigquery.QueryJobConfig(
-        query_parameters=[
-            bigquery.ScalarQueryParameter("location_name", "STRING", location_name)
-        ]
+        query_parameters=[bigquery.ScalarQueryParameter("location_name", "STRING", location_name)]
     )
     return _get_bq_client().query(query, job_config=job_config).to_dataframe()
 
@@ -131,9 +134,11 @@ def _load_retail_series(metric: str) -> pd.DataFrame:
 
 # ── Result container ───────────────────────────────────────────────────────────
 
+
 @dataclass
 class SeriesResult:
     """Prepared time-series ready for SARIMAX modelling."""
+
     domain: str
     metric: str
     location_name: Optional[str]
@@ -142,6 +147,7 @@ class SeriesResult:
 
 
 # ── Public interface ───────────────────────────────────────────────────────────
+
 
 def load_series(
     domain: str,
@@ -164,9 +170,7 @@ def load_series(
     if allowed is None:
         raise ValueError(f"Unknown domain '{domain}'. Choose from: {list(DOMAIN_METRICS)}")
     if metric not in allowed:
-        raise ValueError(
-            f"Metric '{metric}' is not valid for domain='{domain}'. Allowed: {allowed}"
-        )
+        raise ValueError(f"Metric '{metric}' is not valid for domain='{domain}'. Allowed: {allowed}")
 
     if domain == "weather":
         df = _load_weather_series(metric, location_name)
@@ -204,6 +208,7 @@ def make_synthetic_series(
     Produces trend + annual seasonality + Gaussian noise without GCP calls.
     """
     import numpy as np
+
     rng = np.random.default_rng(seed)
     t = pd.date_range(start="2018-01-01", periods=n_obs, freq="MS")
     seasonal = 10 * np.sin(2 * np.pi * t.month / 12)
@@ -213,4 +218,3 @@ def make_synthetic_series(
     series = pd.Series(values, index=t, name=metric)
     train, test = _train_test_split(series, test_months)
     return SeriesResult(domain=domain, metric=metric, location_name=location_name, train=train, test=test)
-

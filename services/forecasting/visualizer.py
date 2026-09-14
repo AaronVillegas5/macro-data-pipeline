@@ -5,6 +5,7 @@ IMPORTANT: matplotlib.use("Agg") MUST be called before importing pyplot.
 This is required for headless operation in Docker, Linux CI, and FastAPI worker
 threads where no display server is available.
 """
+
 from __future__ import annotations
 
 import base64
@@ -12,6 +13,7 @@ import io
 from typing import Optional
 
 import matplotlib
+
 matplotlib.use("Agg")  # Must be set before importing pyplot to prevent headless server crashes
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -170,4 +172,3 @@ def build_evaluation_chart(
     png_bytes = render_to_bytes(fig)
     b64 = base64.b64encode(png_bytes).decode("utf-8")
     return png_bytes, b64
-
