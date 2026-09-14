@@ -16,13 +16,18 @@ def get_bq_client():
 
 
 def query_macro_weather_mart(start_date: str, end_date: str, location_name: str = None) -> list:
-    """Queries the physical dbt mart fct_monthly_macro_weather for analytics metrics."""
+    """Queries the physical dbt mart fct_monthly_macro_weather for analytics metrics.
+    Args:
+        start_date: Start date in 'YYYY-MM' format (e.g. '2020-01')
+        end_date: End date in 'YYYY-MM' format (e.g. '2024-12')
+        location_name: Optional city name (e.g. 'Irvine')
+    """
     project_id = os.getenv("BIGQUERY_PROJECT_ID", "macro-data-pipeline-498302")
     client = get_bq_client()
 
     query = f"""
-    SELECT year_month, location_name, avg_monthly_temp_c, total_monthly_precipitation_mm, 
-           longest_dry_spell_days, cpi, unemployment_rate, fed_funds_rate
+    SELECT location_name, year_month, avg_monthly_temp_c, total_monthly_precipitation_mm, 
+           subzero_days, cpi, unemployment_rate, gdp
     FROM `{project_id}.weather_data.fct_monthly_macro_weather`
     WHERE year_month BETWEEN '{start_date}' AND '{end_date}'
     """
@@ -56,18 +61,23 @@ def check_data_freshness() -> dict:
         db.close()
 
 
-def get_climate_extremes(year: int, metric: str = "dry_spell") -> list:
-    """Finds top locations with extreme climate events (longest dry spell, highest rainfall, hottest month).
+def get_climate_extremes(year: int, metric: str = "subzero_days") -> list:
+    """Finds top locations with extreme climate events (most subzero days, highest rainfall, hottest month).
     Args:
         year: e.g. 2024
-        metric: One of 'dry_spell', 'max_temp', 'total_rainfall'
+        metric: One of 'subzero_days', 'max_temp', 'total_rainfall'
     """
     project_id = os.getenv("BIGQUERY_PROJECT_ID", "macro-data-pipeline-498302")
     client = get_bq_client()
 
-    order_col = "longest_dry_spell_days DESC" if metric == "dry_spell" else "avg_monthly_temp_c DESC"
+    if metric == "subzero_days":
+        order_col = "subzero_days DESC"
+    elif metric == "total_rainfall":
+        order_col = "total_monthly_precipitation_mm DESC"
+    else:
+        order_col = "avg_monthly_temp_c DESC"
     query = f"""
-    SELECT location_name, year_month, avg_monthly_temp_c, total_monthly_precipitation_mm, longest_dry_spell_days
+    SELECT location_name, year_month, avg_monthly_temp_c, total_monthly_precipitation_mm, subzero_days
     FROM `{project_id}.weather_data.fct_monthly_macro_weather`
     WHERE STARTS_WITH(year_month, '{year}')
     ORDER BY {order_col}
@@ -77,7 +87,12 @@ def get_climate_extremes(year: int, metric: str = "dry_spell") -> list:
 
 
 def compare_city_climates(city_a: str, city_b: str, year: int) -> list:
-    """Compares historical climate metrics side-by-side between two cities for a given year."""
+    """Compares historical climate metrics side-by-side between two cities for a given year.
+    Args:
+        city_a: Name of first city (e.g. 'Irvine')
+        city_b: Name of second city (e.g. 'Seattle')
+        year: The year to compare (e.g. 2024)
+    """
     project_id = os.getenv("BIGQUERY_PROJECT_ID", "macro-data-pipeline-498302")
     client = get_bq_client()
     query = f"""
