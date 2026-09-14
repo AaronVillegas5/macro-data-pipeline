@@ -20,7 +20,9 @@ from airflow.operators.python import PythonOperator
 
 
 def send_discord_alert(context):
-    webhook_url = "https://discord.com/api/webhooks/1538356817845948418/EC4I2UfYsZ-5TxOoi2RmmFKQ9ysMR_OCZzqWWQInTlN0KadfJwSB66PqioIwZMLmPHKK"
+    webhook_url = os.getenv("DISCORD_WEBHOOK_URL")
+    if not webhook_url:
+        return
     task_instance = context.get("task_instance")
     task_id = task_instance.task_id
     execution_date = context.get("execution_date")

@@ -9,6 +9,7 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException, status
 from pydantic import BaseModel, Field, model_validator
 
 from app.routers.insights import router as insights_router
+from app.routers.forecasting import router as forecasting_router
 
 app = FastAPI(
     title="Pi Macro Data Pipeline API",
@@ -16,6 +17,7 @@ app = FastAPI(
 )
 
 app.include_router(insights_router, prefix="/api/v1")
+app.include_router(forecasting_router, prefix="/api/v1")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 logger = logging.getLogger(__name__)
@@ -29,7 +31,7 @@ def get_fred_series() -> Dict[str, str]:
         candidate_path = Path(__file__).resolve().parent.parent / "fred_series.csv"
         csv_path = str(candidate_path) if candidate_path.exists() else "/srv/projects/pi-api/fred_series.csv"
     try:
-        with open(csv_path, mode='r', encoding='utf-8') as f:
+        with open(csv_path, mode="r", encoding="utf-8") as f:
             reader = csv.reader(f)
             for row in reader:
                 if len(row) == 2:
@@ -37,6 +39,7 @@ def get_fred_series() -> Dict[str, str]:
     except Exception as e:
         logger.error(f"Failed to load FRED configuration: {e}")
     return series
+
 
 # ==Pydantic Models ==
 class JobStatusResponse(BaseModel):
@@ -61,10 +64,10 @@ class BackfillRequest(BaseModel):
     lon: float = Field(default=-117.6026, ge=-180, le=180)
     location_id: int = 1
 
-    @model_validator(mode='after')
-    def check_dates(self) -> 'BackfillRequest':
+    @model_validator(mode="after")
+    def check_dates(self) -> "BackfillRequest":
         if self.start_date > self.end_date:
-            raise ValueError('start_date must be before end_date')
+            raise ValueError("start_date must be before end_date")
         return self
 
 
@@ -110,8 +113,7 @@ def run_weather(request: WeatherJobRequest, background_tasks: BackgroundTasks):
     except Exception as e:
         logger.error(f"Failed to trigger weather job: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to trigger weather job: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to trigger weather job: {str(e)}"
         )
 
 
@@ -133,8 +135,7 @@ def run_economic(background_tasks: BackgroundTasks):
     fred_series = get_fred_series()
     if not fred_series:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="No FRED series configuration loaded"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="No FRED series configuration loaded"
         )
 
     try:
@@ -147,8 +148,7 @@ def run_economic(background_tasks: BackgroundTasks):
     except Exception as e:
         logger.error(f"Failed to trigger economic job: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to trigger economic job: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to trigger economic job: {str(e)}"
         )
 
 
@@ -190,6 +190,5 @@ def run_backfill_weather(request: BackfillRequest, background_tasks: BackgroundT
     except Exception as e:
         logger.error(f"Failed to trigger backfill job: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to trigger backfill job: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to trigger backfill job: {str(e)}"
         )

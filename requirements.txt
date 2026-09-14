@@ -29,3 +29,8 @@ apache-airflow>=2.9.0
 
 # AI & LLM Agent
 google-genai>=1.0.0
+
+# Forecasting & Statistical Modeling
+statsmodels>=0.14.0
+scikit-learn>=1.4.0
+matplotlib>=3.8.0
