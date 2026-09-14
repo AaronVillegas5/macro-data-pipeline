@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from pydantic import BaseModel
-from typing import List, Any
+from typing import Optional
 from datetime import datetime, timedelta
 
 from services.ai_agent import ask_macro_agent
@@ -60,12 +60,12 @@ def check_freshness(db: Session = Depends(get_db)):
         FROM weather_observations
     """)
     last_obs = db.execute(query).scalar()
-    
+
     if not last_obs:
         return {"status": "NO_DATA"}
-        
+
     is_stale = last_obs < (datetime.utcnow() - timedelta(hours=24))
-    
+
     return {
         "status": "STALE" if is_stale else "HEALTHY",
         "last_observation": last_obs
