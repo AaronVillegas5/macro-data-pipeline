@@ -22,9 +22,13 @@ def get_genai_client():
     return genai.Client(api_key=api_key)
 
 
+from db.locations_data import CITIES_TO_ADD
+
 def ask_macro_agent(user_prompt: str) -> str:
     """Invokes the AI agent with tool-calling access to BigQuery data marts."""
     client = get_genai_client()
+
+    valid_cities = ", ".join([c["name"] for c in CITIES_TO_ADD])
 
     config = types.GenerateContentConfig(
         tools=[
@@ -37,13 +41,15 @@ def ask_macro_agent(user_prompt: str) -> str:
         system_instruction=(
             "You are an expert Macroeconomic & Climate Research Analyst. "
             "Always use your tools to query the official BigQuery data marts and database before answering. "
+            f"IMPORTANT: The only valid cities you can query are: {valid_cities}. Do not try to query cities not on this list. "
             "Provide executive summaries with key statistics and trends."
         ),
     )
 
     candidate_models = []
-    if os.getenv("GEMINI_MODEL"):
-        candidate_models.append(os.getenv("GEMINI_MODEL"))
+    preferred_model = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
+    if preferred_model:
+        candidate_models.append(preferred_model)
 
     try:
         # Dynamically discover available models
@@ -59,6 +65,7 @@ def ask_macro_agent(user_prompt: str) -> str:
     if not candidate_models:
         candidate_models.extend(
             [
+                "gemini-3.1-flash-lite",
                 "gemini-2.5-flash",
                 "gemini-2.0-flash",
                 "gemini-1.5-pro",
@@ -74,6 +81,7 @@ def ask_macro_agent(user_prompt: str) -> str:
     if not candidate_models:
         candidate_models.extend(
             [
+                "gemini-3.1-flash-lite",
                 "gemini-2.5-flash",
                 "gemini-2.0-flash",
                 "gemini-1.5-pro",

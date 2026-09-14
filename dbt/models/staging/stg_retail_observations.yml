@@ -1,0 +1,20 @@
+# Staging: Add generic tests
+version: 2
+
+models:
+  - name: stg_retail_observations
+    description: "Retail sales observations from the Census Bureau."
+    columns:
+      - name: observation_id
+        tests:
+          - not_null
+          - unique
+      - name: naics_code
+        tests:
+          - not_null
+      - name: observed_date
+        tests:
+          - not_null
+      - name: sales_millions
+        description: "Retail sales figure in millions."
+
