@@ -1,0 +1,165 @@
+name: Daily Macro-Weather Pipeline
+
+on:
+  schedule:
+    - cron: "0 6 * * *"  # Daily at 06:00 UTC — matches macro_weather_dag.py schedule
+  workflow_dispatch:      # Manual trigger from GitHub UI
+
+# ── Job 1: Parallel data ingestion (mirrors Airflow's parallel ingest tasks) ──
+jobs:
+  ingest:
+    name: "Ingest: ${{ matrix.job }}"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        job: [weather, economic, retail]
+      fail-fast: false   # Allow other ingestion jobs to complete even if one fails
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run ingestion job (${{ matrix.job }})
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ "${{ matrix.job }}" = "weather" ]; then
+            python -m jobs.fetch_weather
+          elif [ "${{ matrix.job }}" = "economic" ]; then
+            python -m jobs.fetch_economic
+          elif [ "${{ matrix.job }}" = "retail" ]; then
+            python -m jobs.fetch_retail
+          fi
+
+      - name: Send Discord alert on ingestion failure
+        if: failure()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          python -c "
+          from utilities.discord_notifier import post_discord_alert
+          post_discord_alert(
+              'GitHub Actions',
+              '${{ matrix.job }} ingestion',
+              'Ingestion step failed. See: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+          )
+          "
+
+  # ── Job 2: dbt run + test (sequential, depends on all ingest jobs) ───────────
+  transform:
+    name: "dbt Transform & Test"
+    needs: ingest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Write GCP service account key
+        run: |
+          echo '${{ secrets.GCP_CREDENTIALS }}' > gcp-key.json
+
+      - name: Run dbt transformations
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: gcp-key.json
+          BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
+        run: |
+          cd dbt && dbt run --profiles-dir .
+
+      - name: Run dbt data quality tests
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: gcp-key.json
+          BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          cd dbt && dbt test --profiles-dir .
+
+      - name: Send Discord alert on dbt failure
+        if: failure()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          python -c "
+          from utilities.discord_notifier import post_discord_alert
+          post_discord_alert(
+              'GitHub Actions',
+              'dbt run/test',
+              'dbt transformation or data quality test failed. See: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+          )
+          "
+
+  # ── Job 3: AI executive briefing (depends on successful dbt run) ─────────────
+  ai-briefing:
+    name: "Generate AI Executive Briefing"
+    needs: transform
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Write GCP service account key
+        run: |
+          echo '${{ secrets.GCP_CREDENTIALS }}' > gcp-key.json
+
+      - name: Generate daily AI executive briefing
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: gemini-3.1-flash-lite
+          GOOGLE_APPLICATION_CREDENTIALS: gcp-key.json
+          BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python -c "
+          from services.ai_agent import generate_daily_executive_briefing
+          briefing = generate_daily_executive_briefing()
+          print('AI Briefing generated successfully.')
+          print(briefing)
+          "
+
+      - name: Send Discord alert on briefing failure
+        if: failure()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          python -c "
+          from utilities.discord_notifier import post_discord_alert
+          post_discord_alert(
+              'GitHub Actions',
+              'AI Briefing',
+              'Daily AI executive briefing generation failed. See: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+          )
+          "
+

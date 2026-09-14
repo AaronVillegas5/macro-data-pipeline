@@ -24,6 +24,7 @@ def get_genai_client():
 
 from db.locations_data import CITIES_TO_ADD
 
+
 def ask_macro_agent(user_prompt: str) -> str:
     """Invokes the AI agent with tool-calling access to BigQuery data marts."""
     client = get_genai_client()

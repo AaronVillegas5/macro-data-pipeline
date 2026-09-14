@@ -18,3 +18,9 @@ ignore = [
     "W291",   # Trailing whitespace in multi-line strings
     "F841"    # Local variable is assigned to but never used
 ]
+
+[tool.pytest.ini_options]
+# Discover tests in tests/ and resolve project root imports
+testpaths = ["tests"]
+pythonpath = ["."]
+
