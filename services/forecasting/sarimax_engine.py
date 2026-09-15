@@ -112,10 +112,14 @@ def fit_and_forecast(
     result, order, seasonal_order, aic = _aic_grid_search(train, s=seasonal_period)
 
     # In-sample test forecast (covers the holdout period)
-    forecast_obj = result.get_forecast(steps=test_steps)
-    pred_mean = forecast_obj.predicted_mean
-    pred_ci = forecast_obj.conf_int(alpha=0.05)
-    pred_ci.columns = ["lower", "upper"]
+    if test_steps > 0:
+        forecast_obj = result.get_forecast(steps=test_steps)
+        pred_mean = forecast_obj.predicted_mean
+        pred_ci = forecast_obj.conf_int(alpha=0.05)
+        pred_ci.columns = ["lower", "upper"]
+    else:
+        pred_mean = pd.Series(dtype=float)
+        pred_ci = pd.DataFrame(columns=["lower", "upper"], dtype=float)
 
     # Optional future forecast beyond test horizon
     future_mean = None
