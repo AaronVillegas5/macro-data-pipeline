@@ -138,6 +138,16 @@ class TestSARIMAXEngine:
         )
         assert result.future_forecast is None
 
+    def test_predict_future_with_zero_test_steps(self, synthetic):
+        result = fit_and_forecast(
+            train=synthetic.train,
+            test_steps=0,
+            forecast_steps=6,
+        )
+        assert len(result.predictions) == 0
+        assert result.future_forecast is not None
+        assert len(result.future_forecast) == 6
+
 
 # ── evaluator tests ───────────────────────────────────────────────────────────
 

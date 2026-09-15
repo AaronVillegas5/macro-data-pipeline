@@ -12,9 +12,10 @@ While powered by data engineering infrastructure (Apache Airflow, dbt, PostgreSQ
 
 - **AI-Powered Business Intelligence**: Integrates a Gemini-powered AI agent to interrogate BigQuery data marts and generate executive summaries using natural language.
 - **Dimensional Data Modeling**: Uses `dbt` to transform raw observations into clean, analytics-ready fact and dimension tables.
+- **SARIMAX Time-Series Forecasting & Evaluation**: Fits Seasonal AutoRegressive Integrated Moving Average with eXogenous factors (SARIMAX) models across retail, economic, and weather domains using AIC-driven hyperparameter grid search. Computes holdout evaluation metrics (RMSE, MAE, MAPE), generates 95% confidence intervals, and renders trajectory visualization plots.
 - **Climate, Economic & Consumer Correlation**: Evaluates relationships between inflation, employment rates, consumer retail spending, and extreme weather events (e.g., dry spells, extreme temperature anomalies).
 - **Advanced Time-Series Analysis**: Handles complex SQL aggregations including 30-day rolling averages, year-over-year percentage changes, and gaps-and-islands problems.
-- **Automated Data Pipelines**: Uses Apache Airflow to reliably orchestrate daily data ingestion from the FRED, Open-Meteo, and US Census APIs into cloud data warehouses.
+- **Automated Data Pipelines**: Orchestrates daily data ingestion from FRED, Open-Meteo, and US Census APIs via GitHub Actions with an ephemeral PostgreSQL service container and BigQuery streaming writes.
 - **Cloud Analytics**: Natively built on Google BigQuery for highly performant, scalable querying.
 
 ---
@@ -51,12 +52,13 @@ The dbt project organizes transformations into a strict, three-tier dimensional 
 
 ## Tools & Technologies
 
+- **Statistical Modeling & Forecasting**: Statsmodels (SARIMAX), Scikit-learn, Matplotlib
 - **Data Warehousing**: Google BigQuery, Snowflake, PostgreSQL
 - **Data Transformation**: dbt (data build tool) & dbt-bigquery
-- **Orchestration**: Apache Airflow
-- **AI & Analytics**: Google Gemini API (google-genai), Pandas
+- **Orchestration & CI/CD**: GitHub Actions (daily scheduled pipeline with Docker service container, dbt PR testing, Ruff lint & format checks), Apache Airflow
+- **AI & Analytics**: Google Gemini API (`gemini-3.1-flash-lite`), Pandas, NumPy
 - **APIs & Ingestion**: Python, FastAPI, AWS S3
-- **CI/CD**: GitHub Actions (automated dbt testing)
+- **Alerting & Notifications**: Discord Webhooks
 
 ---
 
@@ -66,10 +68,11 @@ The dbt project organizes transformations into a strict, three-tier dimensional 
 graph TD
     %% Styling
     classDef source fill:#2d3748,stroke:#4a5568,stroke-width:2px,color:#fff;
-    classDef airflow fill:#b83280,stroke:#97266d,stroke-width:2px,color:#fff;
+    classDef actions fill:#b83280,stroke:#97266d,stroke-width:2px,color:#fff;
     classDef bigquery fill:#2b6cb0,stroke:#2c5282,stroke-width:2px,color:#fff;
     classDef dbt fill:#dd6b20,stroke:#c05621,stroke-width:2px,color:#fff;
     classDef app fill:#38a169,stroke:#2f855a,stroke-width:2px,color:#fff;
+    classDef ml fill:#805ad5,stroke:#6b46c1,stroke-width:2px,color:#fff;
 
     %% Nodes and Subgraphs
     subgraph External["External APIs"]
@@ -78,7 +81,10 @@ graph TD
         K[US Census Retail API]:::source
     end
 
-    C[Apache Airflow Data Fetchers]:::airflow
+    subgraph CI["Orchestration Engine"]
+        C[GitHub Actions / Airflow Pipeline]:::actions
+        L[(Ephemeral Postgres<br/>Service Container)]:::actions
+    end
 
     subgraph GCP["Google Cloud Platform"]
         D[(BigQuery<br/>Raw Data)]:::bigquery
@@ -91,21 +97,39 @@ graph TD
         H[(BigQuery<br/>Data Marts)]:::bigquery
     end
 
-    subgraph Serving["Consumption Layer"]
+    subgraph Serving["Consumption & Forecasting Layer"]
         I[FastAPI Backend]:::app
         J[Gemini AI Analyst Agent]:::app
+        M[SARIMAX Forecasting Engine]:::ml
+        N[Model Evaluator & Visualizer]:::ml
     end
 
     %% Connections
     A -->|JSON/API| C
     B -->|JSON/API| C
     K -->|JSON/API| C
+    C <-->|Seed / Locations| L
     C -->|Load| D
     D --> E
     G -->|Write| H
+    H -->|Historical Series| M
+    M -->|Predictions & CI| N
+    N -->|Base64 / Plots| I
     H -->|Query| I
     I <-->|Prompt & Context| J
 ```
+
+---
+
+## Forecasting API Endpoints
+
+The platform serves statistical time-series forecasting and evaluation through FastAPI endpoints mounted under `/api/v1/forecast`:
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/v1/forecast/arima/evaluate` | `POST` | Fits SARIMAX with AIC grid search, runs holdout evaluation, returns error metrics (RMSE, MAE, MAPE), point forecasts, 95% confidence intervals, and a Base64-encoded PNG plot. |
+| `/api/v1/forecast/arima/evaluate/plot` | `GET` | Streams the actual vs. predicted trajectory plot directly as `image/png` for embedding in dashboards or reports. |
+| `/api/v1/forecast/arima/predict` | `POST` | Trains on the complete historical series and generates an out-of-sample forward-looking forecast with 95% confidence intervals for $N$ future months. |
 
 ---
 
@@ -120,37 +144,48 @@ cd macro-data-pipeline
 **2. Environment Variables**
 Copy `.env.example` to `.env` and fill in your credentials:
 ```env
+# Economic & Retail Data
 FRED_API_KEY=your_fred_api_key
-DATABASE_URL=postgresql://user:password@db:5432/db
-SNOWFLAKE_ACCOUNT=your_snowflake_account
-AWS_ACCESS_KEY_ID=your_aws_key
-AWS_SECRET_ACCESS_KEY=your_aws_secret
+CENSUS_API_KEY=your_census_api_key
+
+# Databases & Warehouses
+DATABASE_URL=postgresql://user:password@localhost:5432/mydb
 BIGQUERY_PROJECT_ID=your_gcp_project_id
+SNOWFLAKE_ACCOUNT=your_snowflake_account
+SNOWFLAKE_USER=your_snowflake_user
+SNOWFLAKE_PASSWORD=your_snowflake_password
+
+# AI & Notifications
 GEMINI_API_KEY=your_gemini_api_key
+GEMINI_MODEL=gemini-3.1-flash-lite
+DISCORD_WEBHOOK_URL=your_discord_webhook_url
 ```
 
 For BigQuery, authenticate via Application Default Credentials and ensure your `gcp-key.json` is in the project root.
 
-**3. Run the Infrastructure**
-Use Docker Compose to start the local database, Apache Airflow orchestrator, and the FastAPI application.
+**3. Run the Infrastructure Locally**
+Start the database, scheduler, and FastAPI application:
 ```bash
 docker-compose up -d
 ```
-
-**4. Run dbt Analytics Pipeline**
+Or run the FastAPI server directly:
 ```bash
-dbt run
-dbt docs generate
-dbt docs serve
+uvicorn app.main:app --reload
+```
+
+**4. Run Tests & Linting**
+```bash
+pytest
+ruff check .
+ruff format --check .
 ```
 
 ---
 
 ## Future Work
 
-- Build Jupyter-based analysis notebooks for exploratory data analysis.
-- Perform strict statistical correlation and lag analysis (e.g., CPI vs retail spending).
-- Add forecasting models (ARIMA / XGBoost).
+- Build Jupyter-based analysis notebooks for deep exploratory data analysis.
+- Extend forecasting models with multivariate exogenous predictors (e.g. CPI impact on retail subcategories).
 - Deploy an interactive BI dashboard (Streamlit / Plotly Dash).
 
 ---
