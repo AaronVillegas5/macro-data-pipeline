@@ -14,6 +14,20 @@ jobs:
       matrix:
         job: [weather, economic, retail]
       fail-fast: false   # Allow other ingestion jobs to complete even if one fails
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+          POSTGRES_DB: mydb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -28,10 +42,23 @@ jobs:
         run: |
           pip install -r requirements.txt
 
+      - name: Write GCP service account key
+        run: |
+          echo '${{ secrets.GCP_CREDENTIALS }}' > gcp-key.json
+
+      - name: Initialize DB schema and seed locations
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgrespassword@localhost:5432/mydb
+        run: |
+          python -m db.seed_locations
+
       - name: Run ingestion job (${{ matrix.job }})
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: postgresql+psycopg://postgres:postgrespassword@localhost:5432/mydb
+          GOOGLE_APPLICATION_CREDENTIALS: gcp-key.json
+          BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
           SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
           SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
           SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
@@ -140,7 +167,6 @@ jobs:
           GEMINI_MODEL: gemini-3.1-flash-lite
           GOOGLE_APPLICATION_CREDENTIALS: gcp-key.json
           BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           python -c "
           from services.ai_agent import generate_daily_executive_briefing
