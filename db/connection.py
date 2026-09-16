@@ -5,9 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 load_dotenv()
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL environment variable is not set!")
+DATABASE_URL = os.getenv("DATABASE_URL") or "sqlite:///:memory:"
 
 
 engine = create_engine(DATABASE_URL, echo=False, future=True)
