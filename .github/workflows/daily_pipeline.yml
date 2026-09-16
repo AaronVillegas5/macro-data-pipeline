@@ -64,6 +64,8 @@ jobs:
           SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
+          CLEAN_PROJECT=$(echo "$BIGQUERY_PROJECT_ID" | tr -d '"'\'' ' | xargs)
+          export BIGQUERY_PROJECT_ID="${CLEAN_PROJECT:-macro-data-pipeline-498302}"
           if [ "${{ matrix.job }}" = "weather" ]; then
             python -m jobs.fetch_weather
           elif [ "${{ matrix.job }}" = "economic" ]; then
@@ -115,6 +117,8 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-key.json
           BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
         run: |
+          CLEAN_PROJECT=$(echo "$BIGQUERY_PROJECT_ID" | tr -d '"'\'' ' | xargs)
+          export BIGQUERY_PROJECT_ID="${CLEAN_PROJECT:-macro-data-pipeline-498302}"
           cd dbt && dbt run --profiles-dir .
 
       - name: Run dbt data quality tests
@@ -123,6 +127,8 @@ jobs:
           BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
+          CLEAN_PROJECT=$(echo "$BIGQUERY_PROJECT_ID" | tr -d '"'\'' ' | xargs)
+          export BIGQUERY_PROJECT_ID="${CLEAN_PROJECT:-macro-data-pipeline-498302}"
           cd dbt && dbt test --profiles-dir .
 
       - name: Send Discord alert on dbt failure
@@ -169,6 +175,8 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-key.json
           BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
         run: |
+          CLEAN_PROJECT=$(echo "$BIGQUERY_PROJECT_ID" | tr -d '"'\'' ' | xargs)
+          export BIGQUERY_PROJECT_ID="${CLEAN_PROJECT:-macro-data-pipeline-498302}"
           python -c "
           from services.ai_agent import generate_daily_executive_briefing
           briefing = generate_daily_executive_briefing()
