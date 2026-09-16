@@ -55,7 +55,7 @@ jobs:
       - name: Run ingestion job (${{ matrix.job }})
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgrespassword@localhost:5432/mydb
-          GOOGLE_APPLICATION_CREDENTIALS: gcp-key.json
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-key.json
           BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
@@ -108,17 +108,18 @@ jobs:
       - name: Write GCP service account key
         run: |
           echo '${{ secrets.GCP_CREDENTIALS }}' > gcp-key.json
+          cp gcp-key.json dbt/gcp-key.json
 
       - name: Run dbt transformations
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: gcp-key.json
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-key.json
           BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
         run: |
           cd dbt && dbt run --profiles-dir .
 
       - name: Run dbt data quality tests
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: gcp-key.json
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-key.json
           BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
@@ -165,7 +166,7 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: gemini-3.1-flash-lite
-          GOOGLE_APPLICATION_CREDENTIALS: gcp-key.json
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-key.json
           BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
         run: |
           python -c "
