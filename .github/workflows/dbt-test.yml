@@ -24,10 +24,11 @@ jobs:
         run: |
           # 1. Save the GCP key to a file
           echo "$GCP_KEY" > gcp-key.json
+          cp gcp-key.json dbt/gcp-key.json
           
           # 2. Create the .dbt directory and profiles.yml file
           mkdir -p ~/.dbt
-          cat << 'EOF' > ~/.dbt/profiles.yml
+          cat << EOF > ~/.dbt/profiles.yml
           macro_data_pipeline:
             target: dev
             outputs:
@@ -37,7 +38,7 @@ jobs:
                 project: macro-data-pipeline-498302
                 dataset: dbt_pr_ci
                 threads: 4
-                keyfile: gcp-key.json
+                keyfile: ${{ github.workspace }}/gcp-key.json
           EOF
           
           # 3. Run the dbt commands
