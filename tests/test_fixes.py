@@ -398,6 +398,7 @@ def test_fred_client_passes_date_window_params():
 
     with (
         patch.dict(os.environ, {"FRED_API_KEY": "test_fred_key"}),
+        patch.object(fc, "API_KEY", "test_fred_key"),
         patch("requests.get") as mock_get,
         patch.object(fc, "SessionLocal"),
         patch.object(fc, "save_raw_response"),
