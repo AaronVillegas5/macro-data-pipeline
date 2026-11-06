@@ -79,7 +79,7 @@ class PredictRequest(BaseModel):
 class MetricsPayload(BaseModel):
     rmse: float
     mae: float
-    mape: float
+    mape: Optional[float] = None
 
 
 class EvaluateResponse(BaseModel):

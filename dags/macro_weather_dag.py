@@ -24,13 +24,16 @@ def send_discord_alert(context):
     if not webhook_url:
         return
     task_instance = context.get("task_instance")
-    task_id = task_instance.task_id
+    task_id = task_instance.task_id if task_instance else "unknown"
     execution_date = context.get("execution_date")
 
     payload = {
         "content": f"🚨 **Airflow Pipeline Failure!** 🚨\n**Task:** `{task_id}` failed on `{execution_date}`. Check the Airflow logs immediately."
     }
-    requests.post(webhook_url, json=payload)
+    try:
+        requests.post(webhook_url, json=payload, timeout=10)
+    except Exception as exc:
+        print(f"Failed to send Discord alert: {exc}")
 
 
 # Default arguments applied to all tasks
@@ -83,7 +86,7 @@ with DAG(
     description="Daily ingestion of FRED & Weather APIs followed by dbt BigQuery transformations",
     schedule="0 6 * * *",  # Runs daily at 06:00 UTC
     start_date=datetime(2026, 8, 15),
-    catchup=True,
+    catchup=False,
     tags=["macro", "weather", "dbt", "production"],
 ) as dag:
     ingest_weather = PythonOperator(
@@ -107,13 +110,17 @@ with DAG(
         bash_command="cd /opt/airflow/project_root/dbt && dbt run --profiles-dir .",
     )
 
-    # Trigger dbt tests to validate data quality
+    # Trigger dbt test for data quality assurance
     dbt_test = BashOperator(
-        task_id="dbt_test_quality_checks",
+        task_id="dbt_test_models",
         bash_command="cd /opt/airflow/project_root/dbt && dbt test --profiles-dir .",
     )
 
-    generate_briefing = PythonOperator(task_id="generate_ai_executive_briefing", python_callable=run_daily_ai_briefing)
+    # AI Analyst executive briefing generator
+    generate_briefing = PythonOperator(
+        task_id="generate_ai_briefing",
+        python_callable=run_daily_ai_briefing,
+    )
 
     # Set DAG Dependencies, ingestion runs first, must be successful before dbt run, dbt test, and AI briefing occur
-    ([ingest_weather, ingest_economic, ingest_retail] >> dbt_run >> dbt_test >> generate_briefing)
+    [ingest_weather, ingest_economic, ingest_retail] >> dbt_run >> dbt_test >> generate_briefing

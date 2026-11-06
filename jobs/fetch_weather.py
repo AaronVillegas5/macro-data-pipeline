@@ -19,7 +19,7 @@ def fetch_weather_for_location(db, conn, location: Location):
 
     for row in rows:
         row["location_id"] = location.id
-        save_weather(row)
+    save_weather(rows)
 
     logger.info(f"Processed {len(rows)} weather records for {location.name}")
 
@@ -41,7 +41,7 @@ def fetch_weather_for_location(db, conn, location: Location):
             logger.warning(f"Snowflake loader failed for {location.name}: {e}")
 
 
-def run():
+def run(lat: float | None = None, lon: float | None = None):
     """Loops through all active locations in PostgreSQL and ingests their latest weather."""
     db = SessionLocal()
     conn = None
@@ -50,6 +50,16 @@ def run():
             conn = get_snowflake_connection()
         except Exception as e:
             logger.warning(f"Could not connect to Snowflake: {e}")
+
+        if lat is not None and lon is not None:
+            location = db.query(Location).filter(Location.latitude == lat, Location.longitude == lon).first()
+            if not location:
+                location = db.query(Location).first()
+            if location:
+                fetch_weather_for_location(db, conn, location)
+                return
+            logger.warning(f"No location found for lat={lat}, lon={lon}")
+            return
 
         locations = db.query(Location).all()
         if not locations:

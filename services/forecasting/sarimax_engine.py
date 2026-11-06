@@ -15,6 +15,20 @@ import pandas as pd
 warnings.filterwarnings("ignore", module="statsmodels")
 
 
+# Global cache for optimal (order, seasonal_order) indexed by series metric/identifier
+_ORDER_CACHE: dict[str, tuple[tuple, tuple]] = {}
+
+
+def get_cached_orders() -> dict[str, tuple[tuple, tuple]]:
+    """Return a copy of the current in-memory order cache."""
+    return dict(_ORDER_CACHE)
+
+
+def clear_order_cache() -> None:
+    """Clear the in-memory order cache."""
+    _ORDER_CACHE.clear()
+
+
 @dataclass
 class ForecastResult:
     """Output of a SARIMAX fit and forecast."""
@@ -97,6 +111,8 @@ def fit_and_forecast(
     test_steps: int,
     forecast_steps: int = 0,
     seasonal_period: int = 12,
+    use_cache: bool = True,
+    cache_key: Optional[str] = None,
 ) -> ForecastResult:
     """Fit the best SARIMAX model and generate predictions.
 
@@ -105,11 +121,33 @@ def fit_and_forecast(
         test_steps:      Number of steps to forecast into the holdout period.
         forecast_steps:  Additional future steps beyond the test horizon.
         seasonal_period: Seasonal lag (12 for monthly data).
+        use_cache:       Whether to check and update the optimal order cache.
+        cache_key:       Identifier for order caching (defaults to train.name).
 
     Returns:
         ForecastResult with point forecasts and 95% confidence intervals.
     """
-    result, order, seasonal_order, aic = _aic_grid_search(train, s=seasonal_period)
+    if cache_key is None and hasattr(train, "name") and train.name:
+        cache_key = str(train.name)
+
+    result = None
+    order = None
+    seasonal_order = None
+    aic = None
+
+    if use_cache and cache_key and cache_key in _ORDER_CACHE:
+        cached_order, cached_seasonal = _ORDER_CACHE[cache_key]
+        cached_result = _try_fit(train, cached_order, cached_seasonal)
+        if cached_result is not None:
+            result = cached_result
+            order = cached_order
+            seasonal_order = cached_seasonal
+            aic = cached_result.aic
+
+    if result is None:
+        result, order, seasonal_order, aic = _aic_grid_search(train, s=seasonal_period)
+        if use_cache and cache_key:
+            _ORDER_CACHE[cache_key] = (order, seasonal_order)
 
     # In-sample test forecast (covers the holdout period)
     if test_steps > 0:

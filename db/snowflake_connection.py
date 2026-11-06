@@ -1,6 +1,4 @@
 import os
-
-import snowflake.connector
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -10,6 +8,11 @@ snowflake_account = os.getenv("SNOWFLAKE_ACCOUNT")
 
 
 def get_snowflake_connection():
+    try:
+        import snowflake.connector
+    except ImportError as e:
+        raise RuntimeError(f"Snowflake connector not installed: {e}") from e
+
     return snowflake.connector.connect(
         user=snowflake_user,
         password=snowflake_password,

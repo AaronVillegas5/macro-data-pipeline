@@ -20,48 +20,45 @@ _BQ_TABLE = "observations_v2"
 # ---------------------------------------------------------------------------
 
 
-def save_weather_to_postgres(data: dict) -> None:
+def save_weather_to_postgres(data) -> None:
     """
-    Upserts a single weather observation into PostgreSQL using ON CONFLICT DO UPDATE.
-
-    Data Validation & Edge Cases:
-    - Null values and missing timeseries data in mutable fields (e.g., pressure, humidity) will safely
-      overwrite existing records if an update occurs.
-    - Time-Series Gaps: Resolves historical gaps by allowing missing observations to be backfilled safely
-      without duplicating existing data points.
-
-    Cloud Destination (PostgreSQL):
-    - Uses SQLAlchemy's PostgreSQL dialect `insert().on_conflict_do_update()`.
-    - Conflicts on the unique composite index (location_id, observed_at) trigger an update of mutable fields.
-    - Ensures atomicity through transaction rollbacks on failure.
+    Upserts weather observation(s) into PostgreSQL using ON CONFLICT DO UPDATE.
+    Supports either a single observation dict or a batch list of dicts.
     """
+    observations = data if isinstance(data, list) else [data]
+    if not observations:
+        return
+
     db = SessionLocal()
 
     try:
-        stmt = insert(WeatherObservation).values(
-            location_id=data["location_id"],
-            temperature_c=data["temperature_c"],
-            wind_speed=data["wind_speed"],
-            observed_at=data["observed_at"],
-            pressure=data["pressure"],
-            humidity=data["humidity"],
-        )
+        for d in observations:
+            stmt = insert(WeatherObservation).values(
+                location_id=d["location_id"],
+                temperature_c=d["temperature_c"],
+                wind_speed=d["wind_speed"],
+                observed_at=d["observed_at"],
+                pressure=d["pressure"],
+                humidity=d["humidity"],
+                precipitation=d.get("precipitation", 0.0),
+            )
 
-        stmt = stmt.on_conflict_do_update(
-            index_elements=["location_id", "observed_at"],
-            set_={
-                "temperature_c": stmt.excluded.temperature_c,
-                "wind_speed": stmt.excluded.wind_speed,
-                "pressure": stmt.excluded.pressure,
-                "humidity": stmt.excluded.humidity,
-            },
-        )
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["location_id", "observed_at"],
+                set_={
+                    "temperature_c": stmt.excluded.temperature_c,
+                    "wind_speed": stmt.excluded.wind_speed,
+                    "pressure": stmt.excluded.pressure,
+                    "humidity": stmt.excluded.humidity,
+                    "precipitation": stmt.excluded.precipitation,
+                },
+            )
 
-        db.execute(stmt)
+            db.execute(stmt)
         db.commit()
         logger.debug(
-            "PostgreSQL: upserted observation for location_id=%s",
-            data.get("location_id"),
+            "PostgreSQL: upserted %d observations",
+            len(observations),
         )
 
     except Exception as e:
@@ -78,40 +75,40 @@ def save_weather_to_postgres(data: dict) -> None:
 # ---------------------------------------------------------------------------
 
 
-def save_weather_to_bigquery(data: dict) -> None:
-    """Stream a single weather observation into BigQuery.
-
-    Targets: <BIGQUERY_PROJECT_ID>.weather_data.observations
-
-    The table must already exist in BigQuery with a compatible schema.
-    BigQuery streaming inserts are eventually consistent and do not support
-    true upserts — duplicate rows may appear if this function is retried.
-    """
+def save_weather_to_bigquery(data) -> None:
+    """Stream weather observation(s) into BigQuery in a single batch request."""
     project_id = os.environ.get("BIGQUERY_PROJECT_ID")
     if not project_id:
         raise OSError("BIGQUERY_PROJECT_ID environment variable is not set.")
 
+    observations = data if isinstance(data, list) else [data]
+    if not observations:
+        return
+
     client = bigquery.Client(project=project_id)
     table_ref = f"{project_id}.{_BQ_DATASET}.{_BQ_TABLE}"
 
-    # BigQuery's insert_rows_json requires JSON-serialisable values.
-    # Convert datetime → ISO-8601 string so the transport layer is happy.
-    observed_at = data.get("observed_at")
-    row = {
-        "location_id": data["location_id"],
-        "temperature_c": data["temperature_c"],
-        "wind_speed": data["wind_speed"],
-        "observed_at": observed_at.isoformat() if hasattr(observed_at, "isoformat") else str(observed_at),
-        "pressure": data["pressure"],
-        "humidity": data["humidity"],
-    }
+    rows = []
+    for d in observations:
+        observed_at = d.get("observed_at")
+        rows.append(
+            {
+                "location_id": d["location_id"],
+                "temperature_c": d["temperature_c"],
+                "wind_speed": d["wind_speed"],
+                "observed_at": observed_at.isoformat() if hasattr(observed_at, "isoformat") else str(observed_at),
+                "pressure": d["pressure"],
+                "humidity": d["humidity"],
+                "precipitation": float(d.get("precipitation") or 0.0),
+            }
+        )
 
-    errors = client.insert_rows_json(table_ref, [row])
+    errors = client.insert_rows_json(table_ref, rows)
 
     if errors:
         raise RuntimeError(f"BigQuery streaming insert errors: {errors}")
 
-    logger.debug("BigQuery: streamed observation for location_id=%s", data.get("location_id"))
+    logger.debug("BigQuery: streamed %d observations", len(rows))
 
 
 # ---------------------------------------------------------------------------
@@ -119,22 +116,17 @@ def save_weather_to_bigquery(data: dict) -> None:
 # ---------------------------------------------------------------------------
 
 
-def save_weather(data: dict) -> None:
-    """Write a weather observation to both PostgreSQL and BigQuery.
+def save_weather(data) -> None:
+    """Write weather observation(s) to both PostgreSQL and BigQuery.
 
-    Each sink is wrapped in its own try/except so that a failure in one
-    does not prevent the other from writing.  Both failures are logged;
-    individual exceptions are re-raised only within their own block.
+    Supports either a single observation dict or a list of observation dicts.
     """
     try:
         save_weather_to_postgres(data)
     except Exception as e:
-        # Error already logged inside save_weather_to_postgres; swallow here
-        # so BigQuery write still proceeds.
         logger.warning("PostgreSQL sink failed, continuing to BigQuery. Error: %s", e)
 
     try:
         save_weather_to_bigquery(data)
     except Exception as e:
-        # Swallow so a BigQuery outage never blocks the Postgres path.
         logger.warning("BigQuery sink failed. Error: %s", e)

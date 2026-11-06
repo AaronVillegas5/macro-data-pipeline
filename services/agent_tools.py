@@ -29,14 +29,21 @@ def query_macro_weather_mart(start_date: str, end_date: str, location_name: str 
     SELECT location_name, year_month, avg_monthly_temp_c, total_monthly_precipitation_mm, 
            subzero_days, cpi, unemployment_rate, gdp
     FROM `{project_id}.weather_data.fct_monthly_macro_weather`
-    WHERE year_month BETWEEN '{start_date}' AND '{end_date}'
+    WHERE year_month BETWEEN @start_date AND @end_date
     """
+    query_params = [
+        bigquery.ScalarQueryParameter("start_date", "STRING", str(start_date)),
+        bigquery.ScalarQueryParameter("end_date", "STRING", str(end_date)),
+    ]
+
     if location_name:
-        query += f" AND location_name = '{location_name}'"
+        query += " AND location_name = @location_name"
+        query_params.append(bigquery.ScalarQueryParameter("location_name", "STRING", str(location_name)))
 
     query += " ORDER BY year_month ASC LIMIT 50"
 
-    query_job = client.query(query)
+    job_config = bigquery.QueryJobConfig(query_parameters=query_params)
+    query_job = client.query(query, job_config=job_config)
     return [dict(row) for row in query_job]
 
 
@@ -89,20 +96,25 @@ def get_climate_extremes(year: int, metric: str = "subzero_days") -> list:
     project_id = os.getenv("BIGQUERY_PROJECT_ID", "macro-data-pipeline-498302")
     client = get_bq_client()
 
-    if metric == "subzero_days":
-        order_col = "subzero_days DESC"
-    elif metric == "total_rainfall":
-        order_col = "total_monthly_precipitation_mm DESC"
-    else:
-        order_col = "avg_monthly_temp_c DESC"
+    allowed_metrics = {
+        "subzero_days": "subzero_days DESC",
+        "total_rainfall": "total_monthly_precipitation_mm DESC",
+        "max_temp": "avg_monthly_temp_c DESC",
+    }
+    order_col = allowed_metrics.get(metric, "subzero_days DESC")
+    year_str = str(int(year))
+
     query = f"""
     SELECT location_name, year_month, avg_monthly_temp_c, total_monthly_precipitation_mm, subzero_days
     FROM `{project_id}.weather_data.fct_monthly_macro_weather`
-    WHERE STARTS_WITH(year_month, '{year}')
+    WHERE STARTS_WITH(year_month, @year_prefix)
     ORDER BY {order_col}
     LIMIT 5
     """
-    return [dict(row) for row in client.query(query)]
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[bigquery.ScalarQueryParameter("year_prefix", "STRING", year_str)]
+    )
+    return [dict(row) for row in client.query(query, job_config=job_config)]
 
 
 def compare_city_climates(city_a: str, city_b: str, year: int) -> list:
@@ -114,10 +126,18 @@ def compare_city_climates(city_a: str, city_b: str, year: int) -> list:
     """
     project_id = os.getenv("BIGQUERY_PROJECT_ID", "macro-data-pipeline-498302")
     client = get_bq_client()
+    year_str = str(int(year))
+
     query = f"""
     SELECT location_name, year_month, avg_monthly_temp_c, total_monthly_precipitation_mm
     FROM `{project_id}.weather_data.fct_monthly_macro_weather`
-    WHERE location_name IN ('{city_a}', '{city_b}') AND STARTS_WITH(year_month, '{year}')
+    WHERE location_name IN UNNEST(@cities) AND STARTS_WITH(year_month, @year_prefix)
     ORDER BY year_month ASC, location_name ASC
     """
-    return [dict(row) for row in client.query(query)]
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ArrayQueryParameter("cities", "STRING", [str(city_a), str(city_b)]),
+            bigquery.ScalarQueryParameter("year_prefix", "STRING", year_str),
+        ]
+    )
+    return [dict(row) for row in client.query(query, job_config=job_config)]

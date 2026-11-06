@@ -173,7 +173,7 @@ class TestEvaluator:
         actual = pd.Series([0.0] * 6, index=idx)
         predicted = pd.Series([1.0] * 6, index=idx)
         metrics = evaluate(actual=actual, predicted=predicted)
-        assert math.isnan(metrics.mape)
+        assert metrics.mape is None
 
     def test_metrics_are_non_negative(self):
         idx = pd.date_range("2024-01-01", periods=12, freq="MS")

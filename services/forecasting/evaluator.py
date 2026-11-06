@@ -5,6 +5,7 @@ evaluator.py — Forecast accuracy metrics: RMSE, MAE, MAPE.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -16,7 +17,7 @@ class EvaluationMetrics:
 
     rmse: float  # Root Mean Squared Error — penalises large deviations
     mae: float  # Mean Absolute Error — average absolute deviation in original units
-    mape: float  # Mean Absolute Percentage Error — scale-free %; None if actuals contain zeros
+    mape: Optional[float] = None  # Mean Absolute Percentage Error — scale-free %; None if actuals contain zeros
 
 
 def evaluate(actual: pd.Series, predicted: pd.Series) -> EvaluationMetrics:
@@ -44,12 +45,12 @@ def evaluate(actual: pd.Series, predicted: pd.Series) -> EvaluationMetrics:
     # MAPE: guard against division by zero
     nonzero_mask = actual.values != 0
     if nonzero_mask.sum() == 0:
-        mape = float("nan")
+        mape = None
     else:
-        mape = float(np.mean(abs_errors[nonzero_mask] / np.abs(actual.values[nonzero_mask])) * 100)
+        mape = round(float(np.mean(abs_errors[nonzero_mask] / np.abs(actual.values[nonzero_mask])) * 100), 4)
 
     return EvaluationMetrics(
         rmse=round(rmse, 4),
         mae=round(mae, 4),
-        mape=round(mape, 4),
+        mape=mape,
     )

@@ -1,11 +1,12 @@
-from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.orm import Session
-from sqlalchemy import text
-from pydantic import BaseModel
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
-from services.ai_agent import ask_macro_agent
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
 from db.connection import SessionLocal
+from services.ai_agent import ask_macro_agent
 
 router = APIRouter(prefix="/insights", tags=["AI Insights"])
 
@@ -63,6 +64,10 @@ def check_freshness(db: Session = Depends(get_db)):
     if not last_obs:
         return {"status": "NO_DATA"}
 
-    is_stale = last_obs < (datetime.utcnow() - timedelta(hours=24))
+    now_utc = datetime.now(timezone.utc)
+    if hasattr(last_obs, "tzinfo") and last_obs.tzinfo is not None:
+        is_stale = last_obs < (now_utc - timedelta(hours=24))
+    else:
+        is_stale = last_obs < (now_utc.replace(tzinfo=None) - timedelta(hours=24))
 
-    return {"status": "STALE" if is_stale else "HEALTHY", "last_observation": last_obs}
+    return {"status": "STALE" if is_stale else "HEALTHY", "last_observation": str(last_obs)}
