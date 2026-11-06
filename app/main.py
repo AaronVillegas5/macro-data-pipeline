@@ -1,15 +1,12 @@
-import os
-from pathlib import Path
 import logging
-import csv
 from datetime import date
-from typing import Optional, Dict
+from typing import Dict, Optional
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, status
 from pydantic import BaseModel, Field, model_validator
 
-from app.routers.insights import router as insights_router
 from app.routers.forecasting import router as forecasting_router
+from app.routers.insights import router as insights_router
 
 app = FastAPI(
     title="Pi Macro Data Pipeline API",
@@ -24,21 +21,10 @@ logger = logging.getLogger(__name__)
 
 
 def get_fred_series() -> Dict[str, str]:
-    """Loads FRED series configuration from a CSV file."""
-    series = {}
-    csv_path = os.getenv("FRED_SERIES_CSV_PATH")
-    if not csv_path or not os.path.exists(csv_path):
-        candidate_path = Path(__file__).resolve().parent.parent / "fred_series.csv"
-        csv_path = str(candidate_path) if candidate_path.exists() else "/srv/projects/pi-api/fred_series.csv"
-    try:
-        with open(csv_path, mode="r", encoding="utf-8") as f:
-            reader = csv.reader(f)
-            for row in reader:
-                if len(row) == 2:
-                    series[row[0].strip()] = row[1].strip()
-    except Exception as e:
-        logger.error(f"Failed to load FRED configuration: {e}")
-    return series
+    """Returns the canonical FRED series dictionary."""
+    from jobs.fetch_economic import FRED_SERIES
+
+    return FRED_SERIES
 
 
 # ==Pydantic Models ==
@@ -91,8 +77,7 @@ def health():
 # Weather job
 @app.post("/jobs/weather", response_model=JobStatusResponse, summary="Trigger a weather data fetch job")
 def run_weather(request: WeatherJobRequest, background_tasks: BackgroundTasks):
-    """
-    Triggers a background job to fetch weather data for the specified coordinates.
+    """Triggers a background job to fetch weather data for the specified coordinates.
 
     Args:
         request (WeatherJobRequest): The location coordinates (lat, lon).
@@ -120,8 +105,7 @@ def run_weather(request: WeatherJobRequest, background_tasks: BackgroundTasks):
 # Economic job
 @app.post("/jobs/economic", response_model=JobStatusResponse, summary="Trigger economic data fetch jobs")
 def run_economic(background_tasks: BackgroundTasks):
-    """
-    Triggers background jobs to fetch various economic indicators from FRED based on config.
+    """Triggers background jobs to fetch various economic indicators from FRED based on config.
 
     Args:
         background_tasks (BackgroundTasks): FastAPI background task handler.
@@ -155,8 +139,7 @@ def run_economic(background_tasks: BackgroundTasks):
 # Backfill weather job with inputtable date range
 @app.post("/jobs/backfill/weather", response_model=BackfillResponse, summary="Trigger weather backfill")
 def run_backfill_weather(request: BackfillRequest, background_tasks: BackgroundTasks):
-    """
-    Triggers a background job to backfill weather data for a specific date range and location.
+    """Triggers a background job to backfill weather data for a specific date range and location.
 
     Args:
         request (BackfillRequest): The location and date range for the backfill.

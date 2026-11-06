@@ -279,3 +279,168 @@ def test_evaluator_returns_none_mape_when_actuals_are_zero():
     payload = MetricsPayload(rmse=metrics.rmse, mae=metrics.mae, mape=metrics.mape)
     json_data = payload.model_dump_json()
     assert '"mape":null' in json_data or '"mape": null' in json_data
+
+
+# ── Audit Fixes Tests ─────────────────────────────────────────────────────────
+
+
+def test_save_economic_dual_sink_with_batching():
+    """Verify save_economic writes to both Postgres and BigQuery with error isolation."""
+    import services.save_economic as se
+
+    rows = [
+        {"series_id": "CPIAUCSL", "series_name": "CPI", "value": 310.2, "observed_at": datetime(2024, 1, 1)},
+        {"series_id": "CPIAUCSL", "series_name": "CPI", "value": 311.1, "observed_at": datetime(2024, 2, 1)},
+    ]
+
+    with (
+        patch.object(se, "save_economic_to_postgres") as mock_pg,
+        patch.object(se, "save_economic_to_bigquery") as mock_bq,
+    ):
+        se.save_economic(rows)
+        mock_pg.assert_called_once_with(rows)
+        mock_bq.assert_called_once_with(rows)
+
+    # Postgres error should not block BigQuery
+    with (
+        patch.object(se, "save_economic_to_postgres", side_effect=Exception("DB down")),
+        patch.object(se, "save_economic_to_bigquery") as mock_bq,
+    ):
+        se.save_economic(rows)
+        mock_bq.assert_called_once_with(rows)
+
+
+def test_fetch_weather_unknown_location_does_not_fallback():
+    """Verify jobs.fetch_weather.run does not fetch first location when given unconfigured coordinates."""
+    import jobs.fetch_weather as fw
+
+    with (
+        patch.object(fw, "SessionLocal") as mock_session_cls,
+        patch.object(fw, "get_snowflake_connection", return_value=None),
+        patch.object(fw, "fetch_weather_for_location") as mock_fetch,
+    ):
+        mock_db = MagicMock()
+        mock_session_cls.return_value = mock_db
+        # No location matches coordinates
+        mock_db.query.return_value.filter.return_value.first.return_value = None
+
+        fw.run(lat=88.0, lon=-150.0)
+        # Must NOT call fetch_weather_for_location
+        mock_fetch.assert_not_called()
+
+
+def test_forecasting_router_passes_isolated_cache_key():
+    """Verify forecasting endpoints pass domain:metric:location cache key to fit_and_forecast."""
+    with (
+        patch("app.routers.forecasting.load_series") as mock_load,
+        patch("app.routers.forecasting.fit_and_forecast") as mock_fit,
+        patch("app.routers.forecasting.evaluate") as mock_eval,
+        patch("app.routers.forecasting.build_evaluation_chart", return_value=(b"fake_png", "base64str")),
+    ):
+        t = pd.date_range("2020-01-01", periods=24, freq="MS")
+        mock_series = MagicMock()
+        mock_series.train = pd.Series(range(12), index=t[:12], name="avg_monthly_temp_c")
+        mock_series.test = pd.Series(range(12, 24), index=t[12:], name="avg_monthly_temp_c")
+        mock_load.return_value = mock_series
+
+        mock_forecast = MagicMock()
+        mock_forecast.model_order = (1, 0, 1)
+        mock_forecast.seasonal_order = (0, 1, 1, 12)
+        mock_forecast.aic = 100.5
+        mock_forecast.predictions = mock_series.test
+        mock_forecast.conf_int = pd.DataFrame(
+            {"lower": mock_series.test, "upper": mock_series.test}, index=mock_series.test.index
+        )
+        mock_fit.return_value = mock_forecast
+        mock_eval.return_value = MagicMock(rmse=1.0, mae=0.5, mape=2.0)
+
+        response = client.post(
+            "/api/v1/forecast/arima/evaluate",
+            json={
+                "domain": "weather",
+                "metric": "avg_monthly_temp_c",
+                "location_name": "Seattle",
+                "test_months": 12,
+            },
+        )
+        assert response.status_code == 200
+        # Verify cache_key includes Seattle, not just the metric name
+        mock_fit.assert_called_once()
+        _, kwargs = mock_fit.call_args
+        assert kwargs.get("cache_key") == "weather:avg_monthly_temp_c:Seattle"
+
+
+def test_retail_service_requests_with_timeout():
+    """Verify services.retail_service passes timeout=30 to requests.get."""
+    import services.retail_service as rs
+
+    with (
+        patch.dict(os.environ, {"CENSUS_API_KEY": "test_key"}),
+        patch("requests.get") as mock_get,
+    ):
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = [
+            ["cell_value", "data_type_code", "category_code", "time", "geo", "extra"],
+            ["12345", "SM", "445", "2024-01", "us", ""],
+        ]
+
+        results = rs.fetch_retail_series()
+        assert len(results) == 1
+        assert results[0]["naics_code"] == "445"
+        mock_get.assert_called_once()
+        _, kwargs = mock_get.call_args
+        assert kwargs.get("timeout") == 30
+
+
+def test_fred_client_passes_date_window_params():
+    """Verify api.fred_client passes observation_start and observation_end to FRED API."""
+    import api.fred_client as fc
+
+    with (
+        patch.dict(os.environ, {"FRED_API_KEY": "test_fred_key"}),
+        patch("requests.get") as mock_get,
+        patch.object(fc, "SessionLocal"),
+        patch.object(fc, "save_raw_response"),
+    ):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"observations": []}
+        mock_get.return_value = mock_resp
+
+        fc.get_series("UNRATE", start="2022-01-01", end="2024-01-01")
+
+        mock_get.assert_called_once()
+        _, kwargs = mock_get.call_args
+        params = kwargs.get("params", {})
+        assert params.get("observation_start") == "2022-01-01"
+        assert params.get("observation_end") == "2024-01-01"
+        assert params.get("series_id") == "UNRATE"
+
+
+def test_get_fred_series_consolidated():
+    """Verify app.main.get_fred_series returns canonical FRED_SERIES."""
+    from app.main import get_fred_series
+    from jobs.fetch_economic import FRED_SERIES
+
+    series = get_fred_series()
+    assert series == FRED_SERIES
+    assert "CPIAUCSL" in series
+    assert "UNRATE" in series
+
+
+def test_snowflake_connection_reads_env_dynamically():
+    """Verify get_snowflake_connection evaluates environment variables at call time."""
+    import db.snowflake_connection as sc
+
+    with patch.dict(
+        os.environ,
+        {"SNOWFLAKE_USER": "dynamic_user", "SNOWFLAKE_PASSWORD": "dynamic_pw", "SNOWFLAKE_ACCOUNT": "dyn_acct"},
+    ):
+        mock_sf = MagicMock()
+        mock_connector = mock_sf.connector
+        with patch.dict(sys.modules, {"snowflake": mock_sf, "snowflake.connector": mock_connector}):
+            sc.get_snowflake_connection()
+            mock_connector.connect.assert_called_once()
+            _, kwargs = mock_connector.connect.call_args
+            assert kwargs.get("user") == "dynamic_user"
+            assert kwargs.get("account") == "dyn_acct"

@@ -2,7 +2,7 @@ from db.connection import SessionLocal
 from db.models import Location
 from db.snowflake_connection import get_snowflake_connection
 from services.save_weather import save_weather
-from services.snowflake_loader import load_weather_to_snowflake
+from services.snowflake_loader import load_weather_pipeline
 from services.weather_service import fetch_weather
 from utilities.logger import logger
 
@@ -36,7 +36,7 @@ def fetch_weather_for_location(db, conn, location: Location):
 
     if conn:
         try:
-            load_weather_to_snowflake(conn, snowflake_rows)
+            load_weather_pipeline(conn, snowflake_rows)
         except Exception as e:
             logger.warning(f"Snowflake loader failed for {location.name}: {e}")
 
@@ -54,11 +54,9 @@ def run(lat: float | None = None, lon: float | None = None):
         if lat is not None and lon is not None:
             location = db.query(Location).filter(Location.latitude == lat, Location.longitude == lon).first()
             if not location:
-                location = db.query(Location).first()
-            if location:
-                fetch_weather_for_location(db, conn, location)
+                logger.warning(f"No configured location found in database for lat={lat}, lon={lon}")
                 return
-            logger.warning(f"No location found for lat={lat}, lon={lon}")
+            fetch_weather_for_location(db, conn, location)
             return
 
         locations = db.query(Location).all()
@@ -76,6 +74,11 @@ def run(lat: float | None = None, lon: float | None = None):
     except Exception:
         logger.exception("Error occurred while querying locations for weather processing")
     finally:
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
         db.close()
 
 

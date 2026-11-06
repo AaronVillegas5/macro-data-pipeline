@@ -1,9 +1,6 @@
-from sqlalchemy.dialects.postgresql import insert
-
-from db.connection import SessionLocal
-from db.models import EconomicObservation
 from db.snowflake_connection import get_snowflake_connection
 from services.economic_service import fetch_series
+from services.save_economic import save_economic
 from services.snowflake_loader import load_economic_to_snowflake
 from utilities.logger import logger
 
@@ -31,7 +28,7 @@ FRED_SERIES = {
 }
 
 
-def fetch_and_save_series(db, conn, series_id, name):
+def fetch_and_save_series(conn, series_id, name):
     logger.info(f"Fetching economic data for series_id={series_id} ({name})")
     rows = fetch_series(series_id)
 
@@ -42,19 +39,11 @@ def fetch_and_save_series(db, conn, series_id, name):
     for row in rows:
         row["series_name"] = name
 
-    stmt = insert(EconomicObservation).values(rows)
+    # Dual-sink to PostgreSQL and BigQuery with error isolation
+    save_economic(rows)
+    logger.info(f"Processed {len(rows)} economic rows for {series_id}")
 
-    # UPSERT into PostgreSQL
-    stmt = stmt.on_conflict_do_update(
-        index_elements=["series_id", "observed_at"],
-        set_={"series_name": name, "value": stmt.excluded.value},
-    )
-
-    db.execute(stmt)
-    db.commit()
-    logger.info(f"Processed {len(rows)} economic rows for {series_id} in PostgreSQL")
-
-    # Load to Snowflake with error isolation
+    # Load to Snowflake with error isolation if connected
     if conn:
         try:
             load_economic_to_snowflake(conn, rows)
@@ -63,7 +52,6 @@ def fetch_and_save_series(db, conn, series_id, name):
 
 
 def run(series_id=None, name=None):
-    db = SessionLocal()
     conn = None
     try:
         try:
@@ -72,18 +60,22 @@ def run(series_id=None, name=None):
             logger.warning(f"Could not connect to Snowflake: {e}")
 
         if series_id and name:
-            fetch_and_save_series(db, conn, series_id, name)
+            fetch_and_save_series(conn, series_id, name)
         else:
             for s_id, s_name in FRED_SERIES.items():
                 try:
-                    fetch_and_save_series(db, conn, s_id, s_name)
+                    fetch_and_save_series(conn, s_id, s_name)
                 except Exception as e:
                     logger.error(f"Failed processing series {s_id}: {e}")
 
     except Exception as e:
         logger.exception(f"Error during economic data processing: {e}")
     finally:
-        db.close()
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":

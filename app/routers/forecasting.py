@@ -1,6 +1,4 @@
-"""
-app/routers/forecasting.py — SARIMAX forecasting and evaluation API endpoints.
-"""
+"""app/routers/forecasting.py — SARIMAX forecasting and evaluation API endpoints."""
 
 from __future__ import annotations
 
@@ -11,8 +9,8 @@ from fastapi.responses import Response
 from pydantic import BaseModel, field_validator, model_validator
 
 from services.forecasting.data_loader import DOMAIN_METRICS, load_series
-from services.forecasting.sarimax_engine import fit_and_forecast
 from services.forecasting.evaluator import evaluate
+from services.forecasting.sarimax_engine import fit_and_forecast
 from services.forecasting.visualizer import build_evaluation_chart
 
 router = APIRouter(prefix="/forecast", tags=["Forecasting"])
@@ -140,11 +138,13 @@ def evaluate_forecast(payload: EvaluateRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Data loading error: {e}")
 
+    cache_key = f"{payload.domain}:{payload.metric}:{payload.location_name or 'national'}"
     try:
         forecast = fit_and_forecast(
             train=series.train,
             test_steps=payload.test_months,
             forecast_steps=0,
+            cache_key=cache_key,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Model fitting error: {e}")
@@ -214,8 +214,13 @@ def evaluate_forecast_plot(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Data loading error: {e}")
 
+    cache_key = f"{domain}:{metric}:{location_name or 'national'}"
     try:
-        forecast = fit_and_forecast(train=series.train, test_steps=test_months)
+        forecast = fit_and_forecast(
+            train=series.train,
+            test_steps=test_months,
+            cache_key=cache_key,
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Model fitting error: {e}")
 
@@ -258,11 +263,13 @@ def predict_future(payload: PredictRequest):
 
     full_series = pd.concat([series.train, series.test])
 
+    cache_key = f"{payload.domain}:{payload.metric}:{payload.location_name or 'national'}"
     try:
         forecast = fit_and_forecast(
             train=full_series,
             test_steps=0,
             forecast_steps=payload.forecast_months,
+            cache_key=cache_key,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Model fitting error: {e}")

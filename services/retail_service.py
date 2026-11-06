@@ -23,8 +23,8 @@ TARGET_NAICS = {
 
 
 def fetch_retail_series(start_year="1992"):
-    """
-    Fetches Monthly Retail Trade Survey (MARTS) data from the U.S. Census Bureau.
+    """Fetches Monthly Retail Trade Survey (MARTS) data from the U.S. Census Bureau.
+
     Requires CENSUS_API_KEY in the environment.
     """
     api_key = os.environ.get("CENSUS_API_KEY")
@@ -40,7 +40,7 @@ def fetch_retail_series(start_year="1992"):
     }
 
     logger.info(f"Fetching retail data from {start_year}...")
-    response = requests.get(CENSUS_API_URL, params=params)
+    response = requests.get(CENSUS_API_URL, params=params, timeout=30)
 
     if response.status_code != 200:
         logger.error(f"Census API failed: {response.text}")

@@ -12,15 +12,20 @@ load_dotenv()
 API_KEY = os.getenv("FRED_API_KEY")
 
 
-def get_series(series_id):
-    start = "2020-01-01"
-    end = date.today().isoformat()
+def get_series(series_id: str, start: str = "2020-01-01", end: str | None = None):
+    end_date = end or date.today().isoformat()
     if not API_KEY:
         raise ValueError("Missing FRED_API_KEY in .env")
-    logger.info(f"Calling FRED API for {series_id}")
+    logger.info(f"Calling FRED API for {series_id} ({start} to {end_date})")
     url = "https://api.stlouisfed.org/fred/series/observations"
 
-    params = {"series_id": series_id, "api_key": API_KEY, "file_type": "json"}
+    params = {
+        "series_id": series_id,
+        "api_key": API_KEY,
+        "file_type": "json",
+        "observation_start": start,
+        "observation_end": end_date,
+    }
 
     response = requests.get(url, params=params, timeout=10)
     response.raise_for_status()
@@ -28,7 +33,7 @@ def get_series(series_id):
 
     db = SessionLocal()
     try:
-        save_raw_response("fred", series_id, data, db, start, end)
+        save_raw_response("fred", series_id, data, db, start, end_date)
     finally:
         db.close()
     return data
