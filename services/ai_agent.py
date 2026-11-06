@@ -1,3 +1,4 @@
+import logging
 import os
 
 from dotenv import load_dotenv
@@ -7,6 +8,7 @@ load_dotenv()
 from google import genai
 from google.genai import types
 
+from db.locations_data import CITIES_TO_ADD
 from services.agent_tools import (
     check_data_freshness,
     compare_city_climates,
@@ -14,15 +16,14 @@ from services.agent_tools import (
     query_macro_weather_mart,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def get_genai_client():
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY is not set in environment variables or .env")
     return genai.Client(api_key=api_key)
-
-
-from db.locations_data import CITIES_TO_ADD
 
 
 def ask_macro_agent(user_prompt: str) -> str:
@@ -48,7 +49,7 @@ def ask_macro_agent(user_prompt: str) -> str:
     )
 
     candidate_models = []
-    preferred_model = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
+    preferred_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
     if preferred_model:
         candidate_models.append(preferred_model)
 
@@ -62,35 +63,21 @@ def ask_macro_agent(user_prompt: str) -> str:
     except Exception:
         pass
 
-    # Ensure we always have some models to try if discovery fails or returns empty
-    if not candidate_models:
-        candidate_models.extend(
-            [
-                "gemini-3.1-flash-lite",
-                "gemini-2.5-flash",
-                "gemini-2.0-flash",
-                "gemini-1.5-pro",
-                "gemini-1.5-flash",
-            ]
-        )
+    # Ensure we always have default models to fallback on
+    candidate_models.extend(
+        [
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash",
+        ]
+    )
 
     # Deduplicate preserving order
     seen = set()
-    candidate_models = [m for m in candidate_models if not (m in seen or seen.add(m))]
-    candidate_models = [m for m in candidate_models if m]  # Ensure no empty strings
+    candidate_models = [m for m in candidate_models if m and not (m in seen or seen.add(m))]
 
-    if not candidate_models:
-        candidate_models.extend(
-            [
-                "gemini-3.1-flash-lite",
-                "gemini-2.5-flash",
-                "gemini-2.0-flash",
-                "gemini-1.5-pro",
-                "gemini-1.5-flash",
-            ]
-        )
-
-    print(f"DEBUG CANDIDATES: {candidate_models}")
+    logger.debug("Candidate Gemini models: %s", candidate_models)
 
     errors = {}
     for model_name in candidate_models:
